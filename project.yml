@@ -1,0 +1,54 @@
+name: CapMark
+options:
+  bundleIdPrefix: com.capmark
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  minimumXcodeGenVersion: "2.45.4"
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    CODE_SIGN_STYLE: Automatic
+targets:
+  CapMark:
+    type: application
+    platform: macOS
+    sources: [CapMark]
+    configFiles:
+      Debug: Config/Shared.xcconfig
+      Release: Config/Shared.xcconfig
+    settings:
+      base:
+        PRODUCT_NAME: CapMark
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_LSUIElement: YES
+        INFOPLIST_KEY_NSScreenCaptureUsageDescription: "選択した範囲のスクリーンショットを撮影するために使用します。"
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_ENTITLEMENTS: CapMark/CapMark.entitlements
+    entitlements:
+      path: CapMark/CapMark.entitlements
+      properties:
+        com.apple.security.app-sandbox: false
+  CapMarkTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [CapMarkTests]
+    dependencies:
+      - target: CapMark
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.capmark.tests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  CapMark:
+    build:
+      targets:
+        CapMark: all
+        CapMarkTests: [test]
+    test:
+      config: Debug
+      targets:
+        - name: CapMarkTests
+    run:
+      config: Debug

@@ -1,0 +1,9 @@
+// Safe defaults for the public repository.
+// Personal values can override these in Config/Local.xcconfig.
+DEVELOPMENT_TEAM = B38AC9YT25
+PRODUCT_BUNDLE_IDENTIFIER = com.isaji134.CapMark
+
+MARKETING_VERSION = 1.0.0
+CURRENT_PROJECT_VERSION = 1
+
+#include? "Local.xcconfig"
