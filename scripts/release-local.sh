@@ -35,7 +35,8 @@ Options:
 
 Environment:
   NOTARY_KEYCHAIN_PROFILE  notarytool profile (default: CapMarkNotary)
-  BUILD_NUMBER             CFBundleVersion override (default: 1)
+  BUILD_NUMBER             CFBundleVersion override
+                           (default: UTC timestamp YYYYMMDDHHMM)
 
 --publish requires a clean Git worktree and an authenticated gh CLI.
 EOF
@@ -110,7 +111,7 @@ BUNDLE_ID="$(read_build_setting PRODUCT_BUNDLE_IDENTIFIER)"
 [[ -n "$BUNDLE_ID" && "$BUNDLE_ID" != com.example.* && "$BUNDLE_ID" != com.yourname.* ]] \
     || die "Set a real PRODUCT_BUNDLE_IDENTIFIER."
 
-BUILD_NUMBER="${BUILD_NUMBER:-1}"
+BUILD_NUMBER="${BUILD_NUMBER:-$(date -u +%Y%m%d%H%M)}"
 [[ "$BUILD_NUMBER" =~ ^[0-9]+([.][0-9]+)*$ ]] \
     || die "BUILD_NUMBER must contain only numbers and dots: $BUILD_NUMBER"
 

@@ -243,8 +243,9 @@ final class AppModel: ObservableObject {
         ) else { return }
         guard PermissionService.isGranted else {
             Task { await LogService.shared.record(.permissionDenied) }
-            PermissionService.request()
-            errorMessage = "画面キャプチャ権限を許可してください。許可後に再起動が必要な場合があります。"
+            // request() inside openSettings registers CapMark in the TCC list first
+            PermissionService.openSettings()
+            errorMessage = "画面キャプチャ権限を許可してください。システム設定でCapMarkをオンにしたあと、アプリを再起動してください。"
             showSettings()
             return
         }

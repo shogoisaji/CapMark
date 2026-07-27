@@ -60,7 +60,7 @@ final class MenuBarController: NSObject {
         menu.addItem(shortcut)
         let pause = item(model?.settings.shortcut.enabled == true ? "ショートカットを一時停止" : "ショートカットを再開", action: #selector(toggleShortcut))
         menu.addItem(pause)
-        menu.addItem(item("画面キャプチャ権限を確認", action: #selector(openPermission)))
+        menu.addItem(item("画面キャプチャ権限を許可…", action: #selector(openPermission)))
         menu.addItem(item("設定…", action: #selector(showSettings), key: ","))
         menu.addItem(.separator())
         menu.addItem(item("CapMarkを終了", action: #selector(quit), key: "q"))

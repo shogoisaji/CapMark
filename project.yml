@@ -20,8 +20,9 @@ targets:
     settings:
       base:
         PRODUCT_NAME: CapMark
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_APPICON_NAME: CapMarkIcon
         GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: CapMark/Info.plist
         INFOPLIST_KEY_LSUIElement: YES
         INFOPLIST_KEY_NSScreenCaptureUsageDescription: "選択した範囲のスクリーンショットを撮影するために使用します。"
         ENABLE_HARDENED_RUNTIME: YES

@@ -545,24 +545,26 @@ struct SettingsView: View {
                             .font(.body.weight(.medium))
                         Text(PermissionService.isGranted
                               ? "選択した範囲の撮影が利用できます。"
-                              : "システム設定でCapMarkに画面収録を許可してください。")
+                              : "下のボタンで権限を要求すると、システム設定の一覧にCapMarkが現れます。オンにしたらCapMarkを再起動してください。")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
 
                     Spacer(minLength: 8)
 
                     if !PermissionService.isGranted {
-                        Button("権限を要求") {
-                            _ = PermissionService.request()
+                        Button("権限を許可する…") {
+                            PermissionService.openSettings()
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
+                    } else {
+                        Button("システム設定…") {
+                            PermissionService.openSettings()
+                        }
+                        .controlSize(.small)
                     }
-                    Button("システム設定…") {
-                        PermissionService.openSettings()
-                    }
-                    .controlSize(.small)
                 }
                 .padding(.vertical, 4)
                 .accessibilityElement(children: .combine)
@@ -775,12 +777,25 @@ struct SetupView: View {
                     .foregroundStyle(PermissionService.isGranted ? .green : .orange)
                     .symbolRenderingMode(.hierarchical)
                     if !PermissionService.isGranted {
-                        Button("権限を要求") { _ = PermissionService.request() }
-                            .buttonStyle(.borderedProminent)
+                        Button("権限を許可する…") {
+                            PermissionService.openSettings()
+                        }
+                        .buttonStyle(.borderedProminent)
+                    } else {
+                        Button("システム設定…") {
+                            PermissionService.openSettings()
+                        }
                     }
-                    Button("システム設定…") { PermissionService.openSettings() }
                 }
                 .padding(.top, 4)
+                if !PermissionService.isGranted {
+                    Text("ボタンを押すとシステム設定が開き、一覧にCapMarkが追加されます。スイッチをオンにしたあと、CapMarkを再起動してください。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 420)
+                        .padding(.top, 4)
+                }
             }
         case 2:
             setupPage("グローバルショートカット", symbol: "command") {
