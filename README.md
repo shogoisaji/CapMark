@@ -1,86 +1,82 @@
 # CapMark
 
-CapMark is a local-first macOS menu bar app for capturing a selected screen
-region, annotating it, and passing it straight into your next task.
+CapMark is a local-first macOS menu bar app for capturing, annotating, and
+sharing screen regions without interrupting your workflow.
+
+Your screenshots and annotations stay on your Mac. CapMark does not require an
+account or upload your captures.
 
 ## Features
 
-- Capture a rectangular screen region with a configurable global shortcut
-- Add arrows, rectangles, highlights, freehand strokes, and text
-- Copy, save, or drag annotated images into another app
-- Keep a configurable local history of recent captures
-- Run as a menu bar app without a Dock icon
-- Keep screenshots and annotations on your Mac
+- Capture any rectangular screen region with a global keyboard shortcut
+- Annotate captures with arrows, rectangles, highlights, freehand strokes,
+  blackouts, and text
+- Copy, save, or drag captures directly into another app
+- Quickly return to recent captures from the Shelf and history
+- Customize image format, file naming, save location, retention, and shortcuts
+- Run quietly from the menu bar without a Dock icon
 
 ## Requirements
 
-- macOS 14 or later
+- macOS 14 Sonoma or later
 - Screen Recording permission
 
-## Install
+## Install with Homebrew
 
-Download the latest notarized ZIP from
+```sh
+brew install --cask shogoisaji/capmark/capmark
+```
+
+Homebrew installs CapMark in your Applications folder and keeps it up to date:
+
+```sh
+brew update
+brew upgrade --cask capmark
+```
+
+## Install manually
+
+Download the latest ZIP from
 [GitHub Releases](https://github.com/shogoisaji/CapMark/releases), extract it,
-and move `CapMark.app` to Applications.
+and move `CapMark.app` to your Applications folder.
 
-On first use, macOS asks for Screen Recording permission. Grant access to
-CapMark in **System Settings → Privacy & Security → Screen & System Audio
-Recording**.
+## Getting started
 
-## Development
+1. Open CapMark from your Applications folder.
+2. Grant Screen Recording permission when prompted. If needed, open
+   **System Settings → Privacy & Security → Screen & System Audio Recording**
+   and enable CapMark, then restart the app.
+3. Press **⇧⌘2** to start a capture.
+4. Drag over the part of the screen you want to capture.
+5. Use the Shelf to copy, save, drag, or annotate the captured image.
 
-CapMark uses [XcodeGen](https://github.com/yonaskolb/XcodeGen). Generate the
-Xcode project and run the tests with:
+The capture shortcut and post-capture behavior can be changed from CapMark
+settings.
 
-```sh
-brew install xcodegen
-xcodegen generate
-xcodebuild test \
-  -project CapMark.xcodeproj \
-  -scheme CapMark \
-  -destination "platform=macOS" \
-  CODE_SIGNING_ALLOWED=NO
-```
-
-## Local release
-
-Releases are built, Developer ID-signed, notarized, and packaged locally.
-One-time setup:
+## Uninstall
 
 ```sh
-xcrun notarytool store-credentials CapMarkNotary \
-  --key /secure/path/AuthKey_<KEY_ID>.p8 \
-  --key-id <KEY_ID> \
-  --issuer <ISSUER_ID>
+brew uninstall --cask capmark
 ```
 
-Create local release artifacts:
+To also remove settings and locally stored capture history:
 
 ```sh
-scripts/release-local.sh 1.0.0
+brew uninstall --cask --zap capmark
 ```
-
-Create an optional DMG as well (`brew install create-dmg` first):
-
-```sh
-scripts/release-local.sh 1.0.0 --dmg
-```
-
-With a clean worktree and an authenticated GitHub CLI, create and push the tag
-and publish the artifacts to GitHub Releases:
-
-```sh
-scripts/release-local.sh 1.0.0 --publish
-```
-
-Signing overrides can be placed in `Config/Local.xcconfig`; this file is
-ignored by Git.
 
 ## Privacy
 
-CapMark processes captures locally. It does not upload screenshots or require
-an account.
+CapMark processes captures locally. It does not upload screenshots, use cloud
+processing, or require an account.
+
+Capture history and settings are stored under:
+
+```text
+~/Library/Application Support/CapMark
+```
 
 ## License
 
-MIT License. See [LICENSE](LICENSE).
+CapMark is open-source software licensed under the
+[MIT License](LICENSE).
