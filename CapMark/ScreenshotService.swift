@@ -31,6 +31,7 @@ enum DisplayCoordinateMapper {
 }
 
 enum ScreenshotService {
+    @MainActor
     static func capture(screen: NSScreen, rectInScreen: CGRect, includeCursor: Bool) async throws -> CapturedRegion {
         guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else {
             throw CaptureError.displayUnavailable
