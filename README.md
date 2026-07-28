@@ -6,6 +6,8 @@ sharing screen regions without interrupting your workflow.
 Your screenshots and annotations stay on your Mac. CapMark does not require an
 account or upload your captures.
 
+![CapMark capture and annotation demo](Assets/capmark-demo.gif)
+
 ## Features
 
 - Capture any rectangular screen region with a global keyboard shortcut
