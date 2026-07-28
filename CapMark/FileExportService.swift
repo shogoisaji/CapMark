@@ -45,6 +45,11 @@ private struct ExportAccessoryView: View {
     }
 }
 
+private struct ExportRequest: Sendable {
+    let item: CaptureItem
+    let destination: URL
+}
+
 enum FileCollisionResolution: Equatable {
     case use(URL)
     case confirm(URL)
@@ -140,6 +145,7 @@ enum FileExportService {
         Task {
             do {
                 try await Task.detached(priority: .userInitiated) {
+                    [item, resolvedDestination, effectiveSettings, exportsOriginal] in
                     try export(
                         item, to: resolvedDestination,
                         settings: effectiveSettings,
@@ -181,7 +187,7 @@ enum FileExportService {
             return
         }
         var occupied: Set<URL> = []
-        var requests: [(item: CaptureItem, destination: URL)] = []
+        var requests: [ExportRequest] = []
         for item in items {
             let proposed = directory.appendingPathComponent(
                 filename(for: item, settings: settings)
@@ -210,7 +216,7 @@ enum FileExportService {
                 continue
             }
             occupied.insert(destination)
-            requests.append((item: item, destination: destination))
+            requests.append(ExportRequest(item: item, destination: destination))
         }
         guard !requests.isEmpty else {
             onFinished([])
@@ -218,6 +224,7 @@ enum FileExportService {
         }
         Task {
             let outcome = await Task.detached(priority: .userInitiated) {
+                [requests, settings] in
                 var savedIDs: Set<UUID> = []
                 var failureCodes: [String] = []
                 var encounteredOutOfDiskSpace = false
