@@ -6,6 +6,8 @@ sharing screen regions without interrupting your workflow.
 Your screenshots and annotations stay on your Mac. CapMark does not require an
 account or upload your captures.
 
+![CapMark capture and annotation demo](Assets/capmark-demo.gif)
+
 ## Features
 
 - Capture any rectangular screen region with a global keyboard shortcut
@@ -23,11 +25,16 @@ account or upload your captures.
 
 ## Install with Homebrew
 
+Add the CapMark tap, trust its cask, and install it:
+
 ```sh
-brew install --cask shogoisaji/capmark/capmark
+brew tap shogoisaji/capmark
+brew trust --cask shogoisaji/capmark/capmark
+brew install --cask capmark
 ```
 
-Homebrew installs CapMark in your Applications folder and keeps it up to date:
+Homebrew installs CapMark in your Applications folder. To install future
+updates:
 
 ```sh
 brew update
