@@ -25,17 +25,7 @@ account or upload your captures.
 
 ## Install with Homebrew
 
-Install CapMark directly from its Homebrew tap:
-
-```sh
-brew install --cask shogoisaji/capmark/capmark
-```
-
-This fully qualified command automatically adds the tap and trusts only the
-CapMark cask.
-
-If you prefer to install and upgrade CapMark using its short name, add the tap
-and explicitly trust the cask first:
+Add the CapMark tap, trust its cask, and install it:
 
 ```sh
 brew tap shogoisaji/capmark
