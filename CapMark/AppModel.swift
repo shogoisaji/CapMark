@@ -6,7 +6,7 @@ enum CaptureStartPolicy {
     static func allows(
         isCapturing: Bool, isEditing: Bool, shortcut: ShortcutConfiguration
     ) -> Bool {
-        !isCapturing && !isEditing && shortcut.enabled && shortcut.isConfigured
+        !isCapturing && !isEditing && shortcut.isConfigured
     }
 }
 
@@ -16,21 +16,6 @@ enum DockVisibilityPolicy {
         case .never: false
         case .whileWindowOpen: hasVisibleWindow
         case .always: true
-        }
-    }
-}
-
-enum TransientLifecyclePolicy {
-    static func removesAfterPostCapture(
-        action: PostCaptureAction, shelfEnabled: Bool
-    ) -> Bool {
-        guard !shelfEnabled else { return false }
-        return switch action {
-        case .shelfOnly:
-            true
-        case .autoCopy, .saveDialog, .autoSave, .openAnnotation,
-             .copyThenAnnotate, .annotateThenCopy:
-            false
         }
     }
 }
@@ -65,8 +50,12 @@ final class AppModel: ObservableObject {
     private var historyPreparationTask: Task<Void, Never>?
     private var settingsSaveTask: Task<Void, Never>?
     private var temporaryFileMaintenanceTask: Task<Void, Never>?
+    private var isShelfHovered = false
+    private var shelfOperationCount = 0
+    private var shelfEditingIDs: Set<UUID> = []
 
     func start(isLoginItemLaunch: Bool = false) {
+        LanguageCenter.shared.apply(settings.preferredLanguage)
         Task { await LogService.shared.record(.appStarted) }
         if let settingsLoadFailure = SettingsStore.shared.consumeLoadFailure() {
             showError(settingsLoadFailure.localizedDescription)
@@ -186,7 +175,22 @@ final class AppModel: ObservableObject {
         await LogService.shared.record(.appStopped)
     }
 
+    func setLanguage(_ language: AppLanguage) {
+        LanguageCenter.shared.apply(language)
+        settings.preferredLanguage = language
+        persistSettings()
+        applyLocalizationToWindows()
+    }
+
+    func applyLocalizationToWindows() {
+        menuBar.update()
+        historyWindow.applyLocalization()
+        settingsWindow.applyLocalization()
+        annotationEditor.applyLocalization()
+    }
+
     func persistSettings() {
+        LanguageCenter.shared.apply(settings.preferredLanguage)
         let requestedShortcut = settings.shortcut
         shortcutRegistrationFailed = !shortcutService.register(requestedShortcut)
         Task { await LogService.shared.record(shortcutRegistrationFailed ? .shortcutRegistrationFailed : .shortcutRegistered) }
@@ -205,7 +209,7 @@ final class AppModel: ObservableObject {
                     try SettingsStore.shared.save(settingsSnapshot)
                 }.value
             } catch {
-                showError("設定を保存できませんでした。\n\(error.localizedDescription)")
+                showError(L10n.t("Could not save settings.\n", "設定を保存できませんでした。\n") + error.localizedDescription)
                 await LogService.shared.record(
                     .settingsSaveFailed,
                     code: .errorType(String(describing: type(of: error)))
@@ -245,7 +249,7 @@ final class AppModel: ObservableObject {
             Task { await LogService.shared.record(.permissionDenied) }
             // request() inside openSettings registers CapMark in the TCC list first
             PermissionService.openSettings()
-            errorMessage = "画面キャプチャ権限を許可してください。システム設定でCapMarkをオンにしたあと、アプリを再起動してください。"
+            errorMessage = L10n.t("Please allow screen recording. Turn CapMark on in System Settings, then restart the app.", "画面キャプチャ権限を許可してください。システム設定でCapMarkをオンにしたあと、アプリを再起動してください。")
             showSettings()
             return
         }
@@ -291,13 +295,7 @@ final class AppModel: ObservableObject {
                 ) { [weak self] document in
                     guard let self else { return }
                     Task {
-                        if await self.finishEditing(
-                            item: item, document: document
-                        ) != nil,
-                           self.transientURLs[item.id] != nil,
-                           !self.settings.shelfEnabled {
-                            self.removeTransient(id: item.id)
-                        }
+                        await self.finishEditing(item: item, document: document)
                         self.isEditing = false
                         self.isCapturing = false
                         self.menuBar.update()
@@ -353,13 +351,8 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func copy(
-        _ item: CaptureItem,
-        removesTransientWhenDone: Bool = false
-    ) {
-        performCopy(
-            item, removesTransientWhenDone: removesTransientWhenDone
-        ) {
+    func copy(_ item: CaptureItem) {
+        performCopy(item) {
             try await ClipboardService.copy(item)
         }
     }
@@ -382,12 +375,11 @@ final class AppModel: ObservableObject {
         }
     }
     func save(_ item: CaptureItem) {
+        let suspendsAutoHide = beginShelfOperation(for: item)
         FileExportService.save(item, settings: settings) { [weak self] ids in
             guard let self else { return }
+            defer { endShelfOperation(if: suspendsAutoHide) }
             if !ids.isEmpty { recordSaved(ids) }
-            if transientURLs[item.id] != nil, !settings.shelfEnabled {
-                removeTransient(id: item.id)
-            }
         }
     }
 
@@ -399,7 +391,7 @@ final class AppModel: ObservableObject {
 
     func edit(_ item: CaptureItem) {
         guard history.contains(where: { $0.id == item.id }) || transientURLs[item.id] != nil else {
-            errorMessage = "この画像はすでに一時Shelfから削除されています。"
+            errorMessage = L10n.t("This image was already removed from the temporary display.", "この画像はすでに一時表示から削除されています。")
             return
         }
         let document: CaptureDocument
@@ -418,6 +410,10 @@ final class AppModel: ObservableObject {
             return
         }
         applyActivationPolicy(windowIsOpen: true)
+        if shelfItems.contains(where: { $0.id == item.id }),
+           shelfEditingIDs.insert(item.id).inserted {
+            beginShelfOperation()
+        }
         isEditing = true
         menuBar.update()
         annotationEditor.show(item: item, document: document, model: self)
@@ -456,11 +452,9 @@ final class AppModel: ObservableObject {
     }
 
     func editorDidFinish(_ item: CaptureItem) {
+        defer { endShelfEditing(item.id) }
         if copyAfterEditing.remove(item.id) != nil {
             copy(item)
-            if transientURLs[item.id] != nil, !settings.shelfEnabled {
-                removeTransient(id: item.id)
-            }
             return
         }
         switch settings.annotationCompletionAction {
@@ -468,16 +462,13 @@ final class AppModel: ObservableObject {
         case .copy: copy(item)
         case .save: save(item)
         }
-        if transientURLs[item.id] != nil, !settings.shelfEnabled {
-            removeTransient(id: item.id)
-        }
     }
 
     func editorDidCancel(_ id: UUID) {
+        defer { endShelfEditing(id) }
         copyAfterEditing.remove(id)
         if transientURLs[id] != nil {
-            if settings.shelfEnabled { presentShelf() }
-            else { removeTransient(id: id) }
+            presentShelf()
         }
     }
 
@@ -572,38 +563,58 @@ final class AppModel: ObservableObject {
     }
 
     func deleteAllHistory() {
-        let deletedCount = history.count
         shelfItems.removeAll()
         shelf.hide()
+        Task { await performDeleteAllHistory() }
+    }
+
+    func deleteAllData() {
+        shelfItems.removeAll()
+        shelf.hide()
+        ThumbnailImageCache.shared.removeAll()
         Task {
-            await historyPreparationTask?.value
-            do {
-                try await historyStore.deleteAll()
-                refreshHistory()
-                await LogService.shared.record(
-                    .historyCleaned, code: .count(deletedCount)
-                )
-            } catch {
-                reportHistoryMutationError(error)
-            }
+            await performDeleteAllHistory()
+            await performClearCache()
+            await LogService.shared.clear()
         }
     }
 
     func clearCache() {
         ThumbnailImageCache.shared.removeAll()
-        Task {
-            do {
-                try await Task.detached(priority: .utility) {
-                    try CacheCleanupService.clear()
-                }.value
-                refreshHistory()
-            } catch {
-                showError("キャッシュを削除できませんでした。\n\(error.localizedDescription)")
-                await LogService.shared.record(
-                    .cacheCleanupFailed,
-                    code: .errorType(String(describing: type(of: error)))
-                )
-            }
+        Task { await performClearCache() }
+    }
+
+    private func performDeleteAllHistory() async {
+        let deletedCount = history.count
+        await historyPreparationTask?.value
+        do {
+            try await historyStore.deleteAll()
+            refreshHistory()
+            await LogService.shared.record(
+                .historyCleaned, code: .count(deletedCount)
+            )
+        } catch {
+            reportHistoryMutationError(error)
+        }
+    }
+
+    private func performClearCache() async {
+        do {
+            try await Task.detached(priority: .utility) {
+                try CacheCleanupService.clear()
+            }.value
+            refreshHistory()
+        } catch {
+            showError(
+                L10n.t(
+                    "Could not clear the cache.\n",
+                    "キャッシュを削除できませんでした。\n"
+                ) + error.localizedDescription
+            )
+            await LogService.shared.record(
+                .cacheCleanupFailed,
+                code: .errorType(String(describing: type(of: error)))
+            )
         }
     }
 
@@ -613,7 +624,9 @@ final class AppModel: ObservableObject {
 
     func resetSettings() {
         settings = AppSettings()
+        LanguageCenter.shared.apply(settings.preferredLanguage)
         persistSettings()
+        applyLocalizationToWindows()
     }
 
     func applyActivationPolicy(windowIsOpen: Bool) {
@@ -658,7 +671,6 @@ final class AppModel: ObservableObject {
     }
 
     func showShelf() {
-        guard settings.shelfEnabled else { return }
         let source = shelfItems.isEmpty
             ? Array(history.prefix(1))
             : Array(shelfItems.prefix(1))
@@ -671,11 +683,17 @@ final class AppModel: ObservableObject {
     }
 
     func shelfHoverChanged(_ hovering: Bool) {
-        // 自動非表示は使わないため、ホバーでのタイマー制御は不要。
-        _ = hovering
+        guard isShelfHovered != hovering else { return }
+        isShelfHovered = hovering
+        updateShelfAutoHideState()
+    }
+
+    func editorWindowDidClose(_ id: UUID) {
+        endShelfEditing(id)
     }
 
     func shelfDidHide() {
+        isShelfHovered = false
         let transientIDs = Set(transientURLs.keys)
         for url in transientURLs.values {
             try? FileManager.default.removeItem(at: url)
@@ -725,7 +743,7 @@ final class AppModel: ObservableObject {
         case .shelfOnly:
             presentShelf()
         case .autoCopy:
-            copy(item, removesTransientWhenDone: true)
+            copy(item)
             presentShelf()
             return
         case .openAnnotation:
@@ -752,9 +770,6 @@ final class AppModel: ObservableObject {
                     )
                     showError(ErrorPresentation.message(for: error))
                 }
-                if transientURLs[item.id] != nil, !settings.shelfEnabled {
-                    removeTransient(id: item.id)
-                }
             }
             presentShelf()
             return
@@ -764,13 +779,6 @@ final class AppModel: ObservableObject {
         case .annotateThenCopy:
             copyAfterEditing.insert(item.id)
             edit(item)
-        }
-        if transientURLs[item.id] != nil,
-           TransientLifecyclePolicy.removesAfterPostCapture(
-            action: settings.postCaptureAction,
-            shelfEnabled: settings.shelfEnabled
-           ) {
-            removeTransient(id: item.id)
         }
     }
 
@@ -798,10 +806,11 @@ final class AppModel: ObservableObject {
 
     private func performCopy(
         _ item: CaptureItem,
-        removesTransientWhenDone: Bool = false,
         operation: @escaping @MainActor () async throws -> Bool
     ) {
+        let suspendsAutoHide = beginShelfOperation(for: item)
         Task {
+            defer { endShelfOperation(if: suspendsAutoHide) }
             do {
                 let succeeded = try await operation()
                 showCopyFeedback(item.id, succeeded: succeeded)
@@ -820,11 +829,6 @@ final class AppModel: ObservableObject {
                         ? .annotationDataCorrupt : .exportFailed,
                     code: .errorType(String(describing: type(of: error)))
                 )
-            }
-            if removesTransientWhenDone,
-               transientURLs[item.id] != nil,
-               !settings.shelfEnabled {
-                removeTransient(id: item.id)
             }
         }
     }
@@ -877,8 +881,45 @@ final class AppModel: ObservableObject {
     }
 
     private func presentShelf() {
-        guard settings.shelfEnabled else { return }
         shelf.show(items: Array(shelfItems.prefix(1)), model: self)
+        updateShelfAutoHideState()
+    }
+
+    @discardableResult
+    private func beginShelfOperation(for item: CaptureItem) -> Bool {
+        guard shelfItems.contains(where: { $0.id == item.id }) else {
+            return false
+        }
+        beginShelfOperation()
+        return true
+    }
+
+    private func beginShelfOperation() {
+        shelfOperationCount += 1
+        updateShelfAutoHideState()
+    }
+
+    private func endShelfOperation(if began: Bool) {
+        guard began else { return }
+        shelfOperationCount = max(0, shelfOperationCount - 1)
+        updateShelfAutoHideState()
+    }
+
+    private func endShelfEditing(_ id: UUID) {
+        guard shelfEditingIDs.remove(id) != nil else { return }
+        endShelfOperation(if: true)
+    }
+
+    private func updateShelfAutoHideState() {
+        if ShelfAutoHidePolicy.shouldSchedule(
+            isHovered: isShelfHovered,
+            activeOperationCount: shelfOperationCount,
+            pausesOnHover: settings.pauseShelfTimerOnHover
+        ) {
+            shelf.resumeAutoHide(model: self)
+        } else {
+            shelf.pauseAutoHide()
+        }
     }
 
     private func removeTransient(id: UUID) {

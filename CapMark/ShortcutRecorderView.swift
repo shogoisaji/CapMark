@@ -9,11 +9,11 @@ struct ShortcutRecorderView: NSViewRepresentable {
         let view = ShortcutRecorderNSView()
         view.onShortcut = { newValue in
             if !newValue.command && !newValue.shift && !newValue.option && !newValue.control {
-                validationMessage = "修飾キーを1つ以上指定してください。"
+                validationMessage = L10n.t("Include at least one modifier key.", "修飾キーを1つ以上指定してください。")
             } else if [36, 53, 123, 124, 125, 126].contains(newValue.keyCode) {
-                validationMessage = "Return、Esc、矢印キーは使用できません。"
+                validationMessage = L10n.t("Return, Esc, and arrow keys are not allowed.", "Return、Esc、矢印キーは使用できません。")
             } else if ShortcutConflictValidator.isReserved(newValue) {
-                validationMessage = "macOSの予約済みショートカットと競合する可能性があります。"
+                validationMessage = L10n.t("This may conflict with a reserved macOS shortcut.", "macOSの予約済みショートカットと競合する可能性があります。")
             } else {
                 validationMessage = nil
                 configuration = newValue
@@ -24,6 +24,7 @@ struct ShortcutRecorderView: NSViewRepresentable {
 
     func updateNSView(_ view: ShortcutRecorderNSView, context: Context) {
         view.display = configuration.display
+        view.isUnset = !configuration.isConfigured
     }
 }
 
@@ -35,6 +36,11 @@ final class ShortcutRecorderNSView: NSView {
                 needsDisplay = true
                 NSAccessibility.post(element: self, notification: .valueChanged)
             }
+        }
+    }
+    var isUnset = false {
+        didSet {
+            if isUnset != oldValue { needsDisplay = true }
         }
     }
     private var recording = false
@@ -59,8 +65,8 @@ final class ShortcutRecorderNSView: NSView {
     private func configureAccessibility() {
         setAccessibilityElement(true)
         setAccessibilityRole(.button)
-        setAccessibilityLabel("グローバルショートカットを記録")
-        setAccessibilityHelp("押した後、修飾キーを含むキーの組み合わせを入力します。")
+        setAccessibilityLabel(L10n.t("Record global shortcut", "グローバルショートカットを記録"))
+        setAccessibilityHelp(L10n.t("After pressing, type a key combination with modifiers.", "押した後、修飾キーを含むキーの組み合わせを入力します。"))
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -107,7 +113,6 @@ final class ShortcutRecorderNSView: NSView {
         value.shift = flags.contains(.shift)
         value.option = flags.contains(.option)
         value.control = flags.contains(.control)
-        value.enabled = true
         value.isConfigured = true
         recording = false
         onShortcut?(value)
@@ -152,11 +157,11 @@ final class ShortcutRecorderNSView: NSView {
         path.lineWidth = recording ? 1.5 : 1
         path.stroke()
 
-        let string = recording ? "キーの組み合わせを入力…" : (display.isEmpty ? "クリックして記録" : display)
+        let string = recording ? L10n.t("Type a key combination…", "キーの組み合わせを入力…") : (display.isEmpty ? L10n.t("Click to record", "クリックして記録") : display)
         let weight: NSFont.Weight = recording ? .regular : .semibold
         let color: NSColor = recording
             ? .secondaryLabelColor
-            : (display == "未設定" || display.isEmpty ? .secondaryLabelColor : .labelColor)
+            : (isUnset || display.isEmpty ? .secondaryLabelColor : .labelColor)
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 14, weight: weight),
             .foregroundColor: color
@@ -174,7 +179,7 @@ final class ShortcutRecorderNSView: NSView {
     override var intrinsicContentSize: NSSize { NSSize(width: 260, height: 36) }
 
     override func accessibilityValue() -> Any? {
-        recording ? "入力待ち" : display
+        recording ? L10n.t("Waiting for input", "入力待ち") : display
     }
 
     override func accessibilityPerformPress() -> Bool {

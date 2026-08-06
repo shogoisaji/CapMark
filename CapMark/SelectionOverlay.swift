@@ -137,13 +137,13 @@ final class SelectionOverlayView: NSView {
 
         var title: String {
             switch self {
-            case .pen: "ペン"
-            case .rectangle: "矩形"
-            case .ellipse: "楕円"
-            case .text: "テキスト"
-            case .undo: "戻す"
-            case .cancel: "キャンセル"
-            case .done: "完了"
+            case .pen: L10n.t("Pen", "ペン")
+            case .rectangle: L10n.t("Rectangle", "矩形")
+            case .ellipse: L10n.t("Ellipse", "楕円")
+            case .text: L10n.t("Text", "テキスト")
+            case .undo: L10n.t("Undo", "戻す")
+            case .cancel: L10n.t("Cancel", "キャンセル")
+            case .done: L10n.t("Done", "完了")
             }
         }
 
@@ -402,7 +402,7 @@ final class SelectionOverlayView: NSView {
         path.lineWidth = borderWidth
         path.stroke()
         if mode == .captureProgress {
-            let progress = "撮影中…"
+            let progress = L10n.t("Capturing…", "撮影中…")
             let progressAttributes: [NSAttributedString.Key: Any] = [
                 .font: NSFont.systemFont(ofSize: 14, weight: .semibold),
                 .foregroundColor: NSColor.white
@@ -424,8 +424,8 @@ final class SelectionOverlayView: NSView {
         resizeHandle = nil
         movingSelection = false
         needsDisplay = true
-        setAccessibilityLabel("スクリーンショットを撮影中")
-        setAccessibilityHelp("撮影が完了すると、この画面で注釈を追加できます。")
+        setAccessibilityLabel(L10n.t("Capturing screenshot", "スクリーンショットを撮影中"))
+        setAccessibilityHelp(L10n.t("When capture finishes, you can add annotations on this screen.", "撮影が完了すると、この画面で注釈を追加できます。"))
     }
 
     func beginQuickAnnotation(
@@ -449,9 +449,12 @@ final class SelectionOverlayView: NSView {
         mode = .annotating
         configureQuickToolbar()
         needsDisplay = true
-        setAccessibilityLabel("簡易注釈")
+        setAccessibilityLabel(L10n.t("Quick annotation", "簡易注釈"))
         setAccessibilityHelp(
-            "ペン、矩形、楕円、テキストを追加できます。Returnで完了、Escでキャンセルします。"
+            L10n.t(
+                "Add pen, rectangle, ellipse, or text. Press Return to finish, Esc to cancel.",
+                "ペン、矩形、楕円、テキストを追加できます。Returnで完了、Escでキャンセルします。"
+            )
         )
         NSAccessibility.post(element: self, notification: .layoutChanged)
     }
@@ -527,16 +530,19 @@ final class SelectionOverlayView: NSView {
     }
 
     override func accessibilityValue() -> Any? {
-        guard let selection else { return "範囲未選択" }
-        return "幅\(Int(selection.width))ポイント、高さ\(Int(selection.height))ポイント"
+        guard let selection else { return L10n.t("No selection", "範囲未選択") }
+        return L10n.tf("Width %d points, height %d points", "幅%dポイント、高さ%dポイント", Int(selection.width), Int(selection.height))
     }
 
     private func configureAccessibility() {
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
-        setAccessibilityLabel("スクリーンショット範囲選択")
+        setAccessibilityLabel(L10n.t("Screenshot region selection", "スクリーンショット範囲選択"))
         setAccessibilityHelp(
-            "ドラッグで範囲を選択します。マウスを離すと確定し、Escでキャンセルします。"
+            L10n.t(
+                "Drag to select a region. Release to confirm, Esc to cancel.",
+                "ドラッグで範囲を選択します。マウスを離すと確定し、Escでキャンセルします。"
+            )
         )
     }
 
@@ -734,7 +740,7 @@ final class SelectionOverlayView: NSView {
                 border = NSColor.white.withAlphaComponent(0.14)
                 iconColor = NSColor.labelColor.withAlphaComponent(0.92)
             }
-            button.setAccessibilityValue(selected ? "選択中" : "未選択")
+            button.setAccessibilityValue(selected ? L10n.t("Selected", "選択中") : L10n.t("Not selected", "未選択"))
         case .done:
             fill = NSColor.systemGreen.withAlphaComponent(0.95)
             border = NSColor.white.withAlphaComponent(0.3)
@@ -780,13 +786,13 @@ final class SelectionOverlayView: NSView {
 
     private func quickActionHelp(_ action: QuickAction) -> String {
         switch action {
-        case .pen: "画像上をドラッグして自由線を描きます。"
-        case .rectangle: "画像上をドラッグして矩形を描きます。"
-        case .ellipse: "画像上をドラッグして楕円を描きます。"
-        case .text: "画像上をクリックしてテキストを入力します。"
-        case .undo: "最後に追加した注釈を取り消します。"
-        case .cancel: "今回の撮影を破棄します。"
-        case .done: "注釈を保存してShelfへ移動します。"
+        case .pen: L10n.t("Drag on the image to draw a freehand line.", "画像上をドラッグして自由線を描きます。")
+        case .rectangle: L10n.t("Drag on the image to draw a rectangle.", "画像上をドラッグして矩形を描きます。")
+        case .ellipse: L10n.t("Drag on the image to draw an ellipse.", "画像上をドラッグして楕円を描きます。")
+        case .text: L10n.t("Click on the image to enter text.", "画像上をクリックしてテキストを入力します。")
+        case .undo: L10n.t("Undo the last annotation.", "最後に追加した注釈を取り消します。")
+        case .cancel: L10n.t("Discard this capture.", "今回の撮影を破棄します。")
+        case .done: L10n.t("Save annotations and move to the temporary display.", "注釈を保存して一時表示へ移動します。")
         }
     }
 
@@ -877,7 +883,7 @@ final class SelectionOverlayView: NSView {
         removeTextField()
         pendingTextPoint = imagePoint
         let field = NSTextField(frame: CGRect(x: viewPoint.x, y: viewPoint.y - 2, width: 220, height: 28))
-        field.placeholderString = "テキストを入力してReturn"
+        field.placeholderString = L10n.t("Type text and press Return", "テキストを入力してReturn")
         field.target = self
         field.action = #selector(commitTextEntry)
         field.focusRingType = .default

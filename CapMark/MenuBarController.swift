@@ -32,7 +32,7 @@ final class MenuBarController: NSObject {
         )
         if shouldShow, statusItem == nil {
             statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-            statusItem?.button?.image = NSImage(systemSymbolName: "viewfinder.circle", accessibilityDescription: "CapMark")
+            statusItem?.button?.image = Self.menuBarImage()
         } else if !shouldShow, let statusItem {
             NSStatusBar.system.removeStatusItem(statusItem)
             self.statusItem = nil
@@ -40,30 +40,33 @@ final class MenuBarController: NSObject {
         statusItem?.menu = buildMenu()
     }
 
+    /// Menu bar icon: 18pt template image from the CapMark logo asset.
+    private static func menuBarImage() -> NSImage? {
+        guard let image = NSImage(named: "MenuBarIcon")?.copy() as? NSImage else {
+            return NSImage(systemSymbolName: "viewfinder.circle", accessibilityDescription: "CapMark")
+        }
+        // Standard menu bar glyph size; 18pt keeps the CM logo legible.
+        image.size = NSSize(width: 18, height: 18)
+        image.isTemplate = true
+        image.accessibilityDescription = "CapMark"
+        return image
+    }
+
     private func buildMenu() -> NSMenu {
         let menu = NSMenu()
-        menu.addItem(item("履歴を開く", action: #selector(showHistory)))
-        menu.addItem(item("Shelfを表示", action: #selector(showShelf)))
-        if model?.history.first != nil {
-            let submenu = NSMenu()
-            submenu.addItem(item("クリップボードへコピー", action: #selector(copyLatest)))
-            submenu.addItem(item("保存…", action: #selector(saveLatest)))
-            submenu.addItem(item("編集", action: #selector(editLatest)))
-            submenu.addItem(item("削除", action: #selector(deleteLatest)))
-            let latestItem = NSMenuItem(title: "最新画像", action: nil, keyEquivalent: "")
-            latestItem.submenu = submenu
-            menu.addItem(latestItem)
-        }
+        menu.addItem(item(L10n.t("Open History", "履歴を開く"), action: #selector(showHistory)))
         menu.addItem(.separator())
-        let shortcut = NSMenuItem(title: "現在: \(model?.settings.shortcut.display ?? "未設定")", action: nil, keyEquivalent: "")
+        let notSet = L10n.t("Not set", "未設定")
+        let shortcut = NSMenuItem(
+            title: L10n.tf("Current: %@", "現在: %@", model?.settings.shortcut.display ?? notSet),
+            action: nil,
+            keyEquivalent: ""
+        )
         shortcut.isEnabled = false
         menu.addItem(shortcut)
-        let pause = item(model?.settings.shortcut.enabled == true ? "ショートカットを一時停止" : "ショートカットを再開", action: #selector(toggleShortcut))
-        menu.addItem(pause)
-        menu.addItem(item("画面キャプチャ権限を許可…", action: #selector(openPermission)))
-        menu.addItem(item("設定…", action: #selector(showSettings), key: ","))
+        menu.addItem(item(L10n.t("Settings…", "設定…"), action: #selector(showSettings), key: ","))
         menu.addItem(.separator())
-        menu.addItem(item("CapMarkを終了", action: #selector(quit), key: "q"))
+        menu.addItem(item(L10n.t("Quit CapMark", "CapMarkを終了"), action: #selector(quit), key: "q"))
         return menu
     }
 
@@ -74,16 +77,6 @@ final class MenuBarController: NSObject {
     }
 
     @objc private func showHistory() { model?.showHistory() }
-    @objc private func showShelf() { model?.showShelf() }
     @objc private func showSettings() { model?.showSettings() }
     @objc private func quit() { model?.quit() }
-    @objc private func openPermission() { PermissionService.openSettings() }
-    @objc private func copyLatest() { if let item = model?.history.first { model?.copy(item) } }
-    @objc private func saveLatest() { if let item = model?.history.first { model?.save(item) } }
-    @objc private func editLatest() { if let item = model?.history.first { model?.edit(item) } }
-    @objc private func deleteLatest() { if let item = model?.history.first { model?.delete(item) } }
-    @objc private func toggleShortcut() {
-        model?.settings.shortcut.enabled.toggle()
-        model?.persistSettings()
-    }
 }

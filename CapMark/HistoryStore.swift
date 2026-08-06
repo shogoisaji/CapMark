@@ -6,7 +6,10 @@ struct HistorySaveFailure: LocalizedError, UnderlyingErrorProviding {
     let underlyingError: Error
 
     var errorDescription: String? {
-        "履歴へ保存できませんでした。画像は一時的に保持しています。\n\(underlyingError.localizedDescription)"
+        L10n.t(
+            "Could not save to history. The image is kept temporarily.\n",
+            "履歴へ保存できませんでした。画像は一時的に保持しています。\n"
+        ) + underlyingError.localizedDescription
     }
 }
 
@@ -15,8 +18,11 @@ struct HistoryMutationFailure: LocalizedError, UnderlyingErrorProviding {
     let underlyingError: Error
 
     var errorDescription: String? {
-        "履歴の\(operation)を保存できませんでした。\n"
-            + underlyingError.localizedDescription
+        L10n.tf(
+            "Could not save history %@.\n",
+            "履歴の%@を保存できませんでした。\n",
+            operation
+        ) + underlyingError.localizedDescription
     }
 }
 
@@ -25,8 +31,10 @@ struct HistoryLoadFailure: LocalizedError, UnderlyingErrorProviding {
     let underlyingError: Error
 
     var errorDescription: String? {
-        "履歴データが破損していたため、安全な場所へ退避しました。\n"
-            + recoveryURL.path
+        L10n.t(
+            "History data was corrupted and moved aside for recovery.\n",
+            "履歴データが破損していたため、安全な場所へ退避しました。\n"
+        ) + recoveryURL.path
     }
 }
 
@@ -136,7 +144,7 @@ actor HistoryStorageWorker {
                 )
             } catch let recoveryError {
                 throw HistoryMutationFailure(
-                    operation: "破損データ退避",
+                    operation: L10n.t("corrupt data recovery", "破損データ退避"),
                     underlyingError: recoveryError
                 )
             }
@@ -221,7 +229,7 @@ final class HistoryStore {
                 )
             } catch {
                 throw HistoryMutationFailure(
-                    operation: "欠損履歴の整理",
+                    operation: L10n.t("missing history cleanup", "欠損履歴の整理"),
                     underlyingError: error
                 )
             }
@@ -351,7 +359,7 @@ final class HistoryStore {
         } catch {
             items = previousItems
             throw HistoryMutationFailure(
-                operation: "削除", underlyingError: error
+                operation: L10n.t("deletion", "削除"), underlyingError: error
             )
         }
     }
@@ -365,7 +373,7 @@ final class HistoryStore {
         } catch {
             items[index].isPinned = previousValue
             throw HistoryMutationFailure(
-                operation: "ピン留め変更", underlyingError: error
+                operation: L10n.t("pin change", "ピン留め変更"), underlyingError: error
             )
         }
     }
@@ -384,7 +392,7 @@ final class HistoryStore {
         } catch {
             items[index].lastCopiedAt = previousValue
             throw HistoryMutationFailure(
-                operation: "コピー日時更新", underlyingError: error
+                operation: L10n.t("copy timestamp update", "コピー日時更新"), underlyingError: error
             )
         }
     }
@@ -405,7 +413,7 @@ final class HistoryStore {
         } catch {
             items = previousItems
             throw HistoryMutationFailure(
-                operation: "保存日時更新", underlyingError: error
+                operation: L10n.t("save timestamp update", "保存日時更新"), underlyingError: error
             )
         }
     }
@@ -565,12 +573,12 @@ final class HistoryStore {
                 }.value
             } catch let rollbackError {
                 throw HistoryMutationFailure(
-                    operation: "注釈変更のロールバック",
+                    operation: L10n.t("annotation change rollback", "注釈変更のロールバック"),
                     underlyingError: rollbackError
                 )
             }
             throw HistoryMutationFailure(
-                operation: "注釈変更", underlyingError: error
+                operation: L10n.t("annotation change", "注釈変更"), underlyingError: error
             )
         }
         return items[index]
@@ -636,7 +644,7 @@ final class HistoryStore {
         } catch {
             items = previousItems
             throw HistoryMutationFailure(
-                operation: "上限整理", underlyingError: error
+                operation: L10n.t("limit enforcement", "上限整理"), underlyingError: error
             )
         }
     }

@@ -13,7 +13,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
                 rootView: SettingsView().environmentObject(model)
             )
             window = NSWindow(contentViewController: controller)
-            window?.title = "設定"
+            window?.title = L10n.t("Settings", "設定")
             window?.setContentSize(CGSize(width: 760, height: 560))
             window?.styleMask = [.titled, .closable, .miniaturizable, .resizable]
             window?.titlebarAppearsTransparent = false
@@ -31,6 +31,10 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             model?.applyActivationPolicy(windowIsOpen: false)
         }
     }
+
+    func applyLocalization() {
+        window?.title = L10n.t("Settings", "設定")
+    }
 }
 
 // MARK: - Navigation
@@ -40,7 +44,6 @@ private enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
     case shortcut
     case capture
     case history
-    case export
     case annotation
     case privacy
 
@@ -48,13 +51,12 @@ private enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
 
     var title: String {
         switch self {
-        case .general: "一般"
-        case .shortcut: "ショートカット"
-        case .capture: "撮影とShelf"
-        case .history: "履歴"
-        case .export: "保存"
-        case .annotation: "注釈"
-        case .privacy: "プライバシー"
+        case .general: L10n.t("General", "一般")
+        case .shortcut: L10n.t("Shortcut", "ショートカット")
+        case .capture: L10n.t("Capture & Temporary Display", "撮影と一時表示")
+        case .history: L10n.t("History & Save", "履歴と保存")
+        case .annotation: L10n.t("Annotation", "注釈")
+        case .privacy: L10n.t("Privacy", "プライバシー")
         }
     }
 
@@ -63,8 +65,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
         case .general: "gearshape"
         case .shortcut: "command"
         case .capture: "viewfinder"
-        case .history: "clock"
-        case .export: "square.and.arrow.down"
+        case .history: "clock.arrow.circlepath"
         case .annotation: "pencil.tip.crop.circle"
         case .privacy: "hand.raised"
         }
@@ -81,6 +82,13 @@ struct SettingsView: View {
     @State private var showResetConfirmation = false
     @State private var shortcutValidationMessage: String?
 
+    private var languageBinding: Binding<AppLanguage> {
+        Binding(
+            get: { model.settings.preferredLanguage },
+            set: { model.setLanguage($0) }
+        )
+    }
+
     var body: some View {
         Group {
             if !model.settings.hasCompletedSetup {
@@ -89,6 +97,7 @@ struct SettingsView: View {
                 settingsShell
             }
         }
+        .observesLanguage()
     }
 
     private var settingsShell: some View {
@@ -110,24 +119,26 @@ struct SettingsView: View {
         .frame(minWidth: 680, minHeight: 480)
         .onChange(of: model.settings) { _, _ in model.persistSettings() }
         .confirmationDialog(
-            "すべての履歴と関連ファイルを削除しますか？",
+            L10n.t("Delete all app data?", "アプリのデータをすべて削除しますか？"),
             isPresented: $showDeleteConfirmation,
             titleVisibility: .visible
         ) {
-            Button("すべて削除", role: .destructive) { model.deleteAllHistory() }
-            Button("キャンセル", role: .cancel) {}
+            Button(L10n.t("Delete All Data", "すべてのデータを削除"), role: .destructive) {
+                model.deleteAllData()
+            }
+            Button(L10n.t("Cancel", "キャンセル"), role: .cancel) {}
         } message: {
-            Text("元画像・注釈・サムネイルもまとめて削除されます。この操作は取り消せません。")
+            Text(L10n.t("History, cached files, and logs will be deleted. Settings will be kept. This cannot be undone.", "履歴・キャッシュ・ログを削除します。設定は保持されます。この操作は取り消せません。"))
         }
         .confirmationDialog(
-            "設定を初期状態へ戻しますか？",
+            L10n.t("Reset settings to defaults?", "設定を初期状態へ戻しますか？"),
             isPresented: $showResetConfirmation,
             titleVisibility: .visible
         ) {
-            Button("初期化", role: .destructive) { model.resetSettings() }
-            Button("キャンセル", role: .cancel) {}
+            Button(L10n.t("Reset", "初期化"), role: .destructive) { model.resetSettings() }
+            Button(L10n.t("Cancel", "キャンセル"), role: .cancel) {}
         } message: {
-            Text("ショートカットや保存先などの設定が既定値に戻ります。履歴データは削除されません。")
+            Text(L10n.t("Shortcuts, save destinations, and other preferences return to defaults. History is kept.", "ショートカットや保存先などの設定が既定値に戻ります。履歴データは削除されません。"))
         }
     }
 
@@ -141,9 +152,7 @@ struct SettingsView: View {
         case .capture:
             capturePane
         case .history:
-            historyPane
-        case .export:
-            exportPane
+            historyAndSavePane
         case .annotation:
             annotationPane
         case .privacy:
@@ -156,57 +165,50 @@ struct SettingsView: View {
     private var generalPane: some View {
         Form {
             Section {
-                Toggle("ログイン時に起動", isOn: $launchAtLogin)
+                Toggle(L10n.t("Launch at login", "ログイン時に起動"), isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, value in
                         model.setLaunchAtLogin(value)
                     }
-                settingsPicker("メニューバーアイコン", selection: $model.settings.menuBarMode) {
-                    ForEach(MenuBarMode.allCases) { Text($0.rawValue).tag($0) }
+                settingsPicker(L10n.t("Menu bar icon", "メニューバーアイコン"), selection: $model.settings.menuBarMode) {
+                    ForEach(MenuBarMode.allCases) { Text($0.title).tag($0) }
                 }
-                settingsPicker("Dockアイコン", selection: $model.settings.dockMode) {
-                    ForEach(DockMode.allCases) { Text($0.rawValue).tag($0) }
+                settingsPicker(L10n.t("Dock icon", "Dockアイコン"), selection: $model.settings.dockMode) {
+                    ForEach(DockMode.allCases) { Text($0.title).tag($0) }
                 }
-                settingsPicker("起動時に開く画面", selection: $model.settings.startupScreen) {
-                    ForEach(StartupScreen.allCases) { Text($0.rawValue).tag($0) }
+                settingsPicker(L10n.t("Open at launch", "起動時に開く画面"), selection: $model.settings.startupScreen) {
+                    ForEach(StartupScreen.allCases) { Text($0.title).tag($0) }
                 }
             } header: {
-                Text("起動と表示")
+                Text(L10n.t("Launch & Appearance", "起動と表示"))
             } footer: {
-                Text("ログイン項目として登録すると、Macの起動後にCapMarkがバックグラウンドで待機します。")
+                Text(L10n.t("When registered as a login item, CapMark waits in the background after Mac startup.", "ログイン項目として登録すると、Macの起動後にCapMarkがバックグラウンドで待機します。"))
             }
 
+
             Section {
-                Toggle("効果音", isOn: $model.settings.soundEnabled)
-                Toggle("macOS通知", isOn: $model.settings.notificationsEnabled)
-                    .onChange(of: model.settings.notificationsEnabled) { _, enabled in
-                        if enabled { FeedbackService.requestNotificationPermission() }
+                Picker(L10n.t("Language", "言語"), selection: languageBinding) {
+                    ForEach(AppLanguage.allCases) { language in
+                        Text(language.displayName).tag(language)
                     }
+                }
+                .pickerStyle(.menu)
             } header: {
-                Text("フィードバック")
+                Text(L10n.t("Language", "言語"))
+            } footer: {
+                Text(L10n.t("The interface language switches immediately. Default is English.", "表示言語はすぐに切り替わります。既定は英語です。"))
             }
 
             Section {
-                Button {
-                    model.showHistory()
-                } label: {
-                    Label("履歴を開く", systemImage: "clock")
-                }
-            }
-
-            Section {
-                Button("すべての履歴を削除", role: .destructive) {
-                    showDeleteConfirmation = true
-                }
-                Button("設定を初期化", role: .destructive) {
+                Button(L10n.t("Reset Settings", "設定を初期化"), role: .destructive) {
                     showResetConfirmation = true
                 }
             } header: {
-                Text("リセット")
+                Text(L10n.t("Reset", "リセット"))
             } footer: {
-                Text("履歴の削除は関連ファイルもまとめて消去します。設定の初期化は履歴を残します。")
+                Text(L10n.t("Settings return to their defaults. History is kept.", "設定を初期状態に戻します。履歴は保持されます。"))
             }
         }
-        .navigationTitle("一般")
+        .navigationTitle(L10n.t("General", "一般"))
     }
 
     // MARK: - Shortcut
@@ -214,15 +216,6 @@ struct SettingsView: View {
     private var shortcutPane: some View {
         Form {
             Section {
-                LabeledContent("現在のショートカット") {
-                    Text(model.settings.shortcut.display)
-                        .font(.body.weight(.medium).monospaced())
-                        .foregroundStyle(model.settings.shortcut.isConfigured ? .primary : .secondary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                }
-
                 VStack(alignment: .leading, spacing: 10) {
                     ShortcutRecorderView(
                         configuration: $model.settings.shortcut,
@@ -240,12 +233,9 @@ struct SettingsView: View {
                 }
                 .padding(.vertical, 4)
 
-                Toggle("ショートカットを有効にする", isOn: $model.settings.shortcut.enabled)
-                    .disabled(!model.settings.shortcut.isConfigured)
-
                 if model.shortcutRegistrationFailed {
                     Label(
-                        "登録に失敗しました。ほかの組み合わせを試してください。",
+                        L10n.t("Registration failed. Try a different combination.", "登録に失敗しました。ほかの組み合わせを試してください。"),
                         systemImage: "exclamationmark.triangle.fill"
                     )
                     .font(.callout)
@@ -253,203 +243,123 @@ struct SettingsView: View {
                     .symbolRenderingMode(.hierarchical)
                 }
             } header: {
-                Text("グローバルショートカット")
+                Text(L10n.t("Global Shortcut", "グローバルショートカット"))
             } footer: {
-                Text("枠をクリックして、修飾キーを含む組み合わせを入力します。撮影開始の入口はこのショートカットだけです。")
+                Text(L10n.t("Click the field and type a combination with modifier keys. Capture starts only from this shortcut.", "枠をクリックして、修飾キーを含む組み合わせを入力します。撮影開始の入口はこのショートカットだけです。"))
             }
 
             Section {
-                Button("デフォルト（⌘⇧2）へ戻す") {
+                Button(L10n.t("Restore Default (⌘⇧2)", "デフォルト（⌘⇧2）へ戻す")) {
                     model.settings.shortcut = ShortcutConfiguration()
                     shortcutValidationMessage = nil
                 }
                 .disabled(
                     model.settings.shortcut == ShortcutConfiguration()
                 )
-                Button("ショートカットを削除", role: .destructive) {
-                    model.settings.shortcut.isConfigured = false
-                    model.settings.shortcut.enabled = false
-                    shortcutValidationMessage = nil
-                }
-                .disabled(!model.settings.shortcut.isConfigured)
             }
         }
-        .navigationTitle("ショートカット")
+        .navigationTitle(L10n.t("Shortcut", "ショートカット"))
     }
 
-    // MARK: - Capture & Shelf
+    // MARK: - Capture & Temporary Display
 
     private var capturePane: some View {
         Form {
             Section {
-                Toggle("マウスカーソルを含める", isOn: $model.settings.includeCursor)
-                settingsPicker("確定後の遅延", selection: $model.settings.selectionDelay) {
-                    Text("なし").tag(0.0)
-                    Text("0.5秒").tag(0.5)
-                    Text("1秒").tag(1.0)
-                    Text("2秒").tag(2.0)
+                Toggle(L10n.t("Include mouse cursor", "マウスカーソルを含める"), isOn: $model.settings.includeCursor)
+                settingsPicker(L10n.t("Delay after confirm", "確定後の遅延"), selection: $model.settings.selectionDelay) {
+                    Text(L10n.t("None", "なし")).tag(0.0)
+                    Text(L10n.t("0.5 s", "0.5秒")).tag(0.5)
+                    Text(L10n.t("1 s", "1秒")).tag(1.0)
+                    Text(L10n.t("2 s", "2秒")).tag(2.0)
                 }
             } header: {
-                Text("撮影")
+                Text(L10n.t("Capture", "撮影"))
             } footer: {
-                Text("確定後の遅延は、範囲を決めてから実際に取り込むまでの待ち時間です。メニューやツールチップを写すときに使います。")
+                Text(L10n.t("Delay after confirming the selection before capture. Useful for menus and tooltips.", "確定後の遅延は、範囲を決めてから実際に取り込むまでの待ち時間です。メニューやツールチップを写すときに使います。"))
             }
 
             Section {
-                percentSlider(
-                    "背景暗度",
-                    value: $model.settings.overlayDimness,
-                    range: 0.2...0.85,
-                    accessibilityLabel: "選択範囲外の背景暗度"
-                )
-                pointSlider(
-                    "境界線の太さ",
-                    value: $model.settings.selectionBorderWidth,
-                    range: 1...6,
-                    accessibilityLabel: "選択範囲の境界線幅"
-                )
+                settingsPicker(L10n.t("Display position", "表示位置"), selection: $model.settings.shelfPosition) {
+                    ForEach(ShelfPosition.allCases) { Text($0.title).tag($0) }
+                }
+                settingsPicker(L10n.t("Auto-close", "自動で閉じる"), selection: $model.settings.shelfDuration) {
+                    Text(L10n.t("Never", "閉じない")).tag(0.0)
+                    ForEach(Self.temporaryDisplayDurations, id: \.self) { seconds in
+                        Text(L10n.tf("%d seconds", "%d秒", Int(seconds))).tag(seconds)
+                    }
+                }
             } header: {
-                Text("選択オーバーレイ")
-            }
-
-            Section {
-                Toggle("Shelfを使用", isOn: $model.settings.shelfEnabled)
-                settingsPicker("位置", selection: $model.settings.shelfPosition) {
-                    ForEach(ShelfPosition.allCases) { Text($0.rawValue).tag($0) }
-                }
-                .disabled(!model.settings.shelfEnabled)
-                settingsPicker("サムネイルサイズ", selection: $model.settings.shelfThumbnailSize) {
-                    ForEach(ShelfThumbnailSize.allCases) { Text($0.rawValue).tag($0) }
-                }
-                .disabled(!model.settings.shelfEnabled)
-                settingsPicker("表示アニメーション", selection: $model.settings.shelfAnimation) {
-                    ForEach(ShelfAnimation.allCases) { Text($0.rawValue).tag($0) }
-                }
-                .disabled(!model.settings.shelfEnabled)
-                settingsPicker("ドラッグ時の形式", selection: $model.settings.dragImageFormat) {
-                    ForEach(DragImageFormat.allCases) { Text($0.rawValue).tag($0) }
-                }
-                .disabled(!model.settings.shelfEnabled)
-            } header: {
-                Text("Shelf")
+                Text(L10n.t("Temporary Display", "一時表示"))
             } footer: {
-                Text("最新の1件だけを画面隅に表示し、閉じるまで維持します。Finderやほかのアプリへそのままドラッグできます。")
+                Text(L10n.t("Shows the latest capture in a screen corner until dismissed. You can drag it into Finder or other apps.", "最新の撮影画像を画面隅に表示し、閉じるまで維持します。Finderやほかのアプリへドラッグできます。"))
             }
         }
-        .navigationTitle("撮影とShelf")
+        .navigationTitle(L10n.t("Capture & Temporary Display", "撮影と一時表示"))
     }
 
-    // MARK: - History
+    private static let temporaryDisplayDurations = [3.0, 5.0, 10.0, 15.0, 30.0, 60.0]
 
-    private var historyPane: some View {
+    // MARK: - History & Save
+
+    private var historyAndSavePane: some View {
         Form {
             Section {
-                Toggle("履歴機能を使用", isOn: $model.settings.historyEnabled)
-                settingsPicker("最大保持件数", selection: $model.settings.historyLimit) {
+                Toggle(L10n.t("Enable history", "履歴機能を使用"), isOn: $model.settings.historyEnabled)
+                settingsPicker(L10n.t("Maximum items", "最大保持件数"), selection: $model.settings.historyLimit) {
                     ForEach([0, 1, 5, 10, 20, 50, 100, 250, 500], id: \.self) {
-                        Text("\($0)件").tag($0)
+                        Text(
+                            $0 == 1
+                                ? L10n.t("1 item", "1件")
+                                : L10n.tf("%d items", "%d件", $0)
+                        ).tag($0)
                     }
                 }
                 .disabled(!model.settings.historyEnabled)
-                Stepper(
-                    value: $model.settings.historyLimit,
-                    in: 0...5000
-                ) {
-                    Text("カスタム件数: \(model.settings.historyLimit)件")
-                }
-                .disabled(!model.settings.historyEnabled)
-                Toggle("ピン留めを上限対象外にする", isOn: $model.settings.pinnedItemsOutsideLimit)
-                    .disabled(!model.settings.historyEnabled)
-                settingsPicker("保存期間", selection: $model.settings.retentionPeriod) {
+                settingsPicker(L10n.t("Retention period", "保存期間"), selection: $model.settings.retentionPeriod) {
                     ForEach(RetentionPeriod.allCases) { Text($0.title).tag($0) }
                 }
                 .disabled(!model.settings.historyEnabled)
             } header: {
-                Text("保持")
+                Text(L10n.t("Retention", "保持"))
             } footer: {
-                Text("上限を超えると、最古のピン留めされていない項目から削除します。")
+                Text(L10n.t("When over the limit, the oldest unpinned items are removed first.", "上限を超えると、最古のピン留めされていない項目から削除します。"))
             }
 
             Section {
-                Toggle("元画像を保持", isOn: $model.settings.keepOriginalImages)
-                    .disabled(!model.settings.historyEnabled)
-                Toggle("注釈済み画像をキャッシュ", isOn: $model.settings.cacheAnnotatedImages)
-                    .disabled(!model.settings.historyEnabled)
-                Toggle("アプリ終了時に履歴を削除", isOn: $model.settings.deleteHistoryOnExit)
-                    .disabled(!model.settings.historyEnabled)
-            } header: {
-                Text("データ")
-            } footer: {
-                Text("元画像を保持すると注釈を後から編集しやすくなります。キャッシュは表示・書き出しを速くしますが、ディスクを使います。")
-            }
-
-            Section {
-                LabeledContent("現在の履歴", value: "\(model.history.count)件")
-                LabeledContent("ディスク使用量", value: model.diskUsageText)
-                LabeledContent("保存場所") {
-                    Text(StoragePaths.root.path)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .textSelection(.enabled)
-                        .multilineTextAlignment(.trailing)
-                }
-            } header: {
-                Text("ストレージ")
-            }
-        }
-        .navigationTitle("履歴")
-    }
-
-    // MARK: - Export
-
-    private var exportPane: some View {
-        Form {
-            Section {
-                settingsPicker("デフォルト形式", selection: $model.settings.exportFormat) {
+                settingsPicker(L10n.t("Default format", "デフォルト形式"), selection: $model.settings.exportFormat) {
                     ForEach(ExportFormat.allCases) { Text($0.rawValue).tag($0) }
                 }
                 if model.settings.exportFormat == .jpeg {
                     percentSlider(
-                        "JPEG品質",
+                        L10n.t("JPEG quality", "JPEG品質"),
                         value: $model.settings.jpegQuality,
                         range: 0.1...1,
-                        accessibilityLabel: "JPEG品質"
+                        accessibilityLabel: L10n.t("JPEG quality", "JPEG品質")
                     )
                 }
-                Toggle("画像メタデータを保持", isOn: $model.settings.preserveExportMetadata)
             } header: {
-                Text("形式")
+                Text(L10n.t("Format", "形式"))
             } footer: {
-                Text("既定ではメタデータを除去します。保持をオンにすると撮影時の情報が残る場合があります。")
+                Text(L10n.t("Choose the format used when saving an image.", "画像を保存するときの形式を選びます。"))
             }
 
             Section {
-                TextField("ファイル名テンプレート", text: $model.settings.filenameTemplate)
-                settingsPicker("同名ファイル", selection: $model.settings.fileCollisionPolicy) {
-                    ForEach(FileCollisionPolicy.allCases) { Text($0.rawValue).tag($0) }
-                }
-            } header: {
-                Text("ファイル名")
-            } footer: {
-                Text("使用可能: {date} {time} {datetime} {width} {height} {display} {uuid}")
-            }
-
-            Section {
-                settingsPicker("自動保存先", selection: $model.settings.saveDestination) {
-                    ForEach(SaveDestination.allCases) { Text($0.rawValue).tag($0) }
+                settingsPicker(L10n.t("Auto-save destination", "自動保存先"), selection: $model.settings.saveDestination) {
+                    ForEach(SaveDestination.allCases) { Text($0.title).tag($0) }
                 }
                 if model.settings.saveDestination == .custom {
-                    LabeledContent("フォルダ") {
+                    LabeledContent(L10n.t("Folder", "フォルダ")) {
                         HStack(spacing: 8) {
                             if let name = model.settings.customSaveFolderName {
                                 Text(name)
                                     .lineLimit(1)
                             } else {
-                                Text("未選択")
+                                Text(L10n.t("Not selected", "未選択"))
                                     .foregroundStyle(.secondary)
                                     .lineLimit(1)
                             }
-                            Button("選択…") {
+                            Button(L10n.t("Choose…", "選択…")) {
                                 if let folder = SecurityScopedBookmarkService.chooseFolder() {
                                     model.settings.customSaveFolderBookmark = folder.data
                                     model.settings.customSaveFolderName = folder.name
@@ -459,10 +369,10 @@ struct SettingsView: View {
                     }
                 }
             } header: {
-                Text("保存先")
+                Text(L10n.t("Destination", "保存先"))
             }
         }
-        .navigationTitle("保存")
+        .navigationTitle(L10n.t("History & Save", "履歴と保存"))
     }
 
     // MARK: - Annotation
@@ -470,58 +380,58 @@ struct SettingsView: View {
     private var annotationPane: some View {
         Form {
             Section {
-                settingsPicker("デフォルトツール", selection: $model.settings.defaultAnnotationTool) {
-                    ForEach(AnnotationTool.allCases) { Text($0.rawValue).tag($0) }
+                settingsPicker(L10n.t("Default tool", "デフォルトツール"), selection: $model.settings.defaultAnnotationTool) {
+                    ForEach(AnnotationTool.allCases) { Text($0.title).tag($0) }
                 }
-                RGBAColorPicker(title: "デフォルト色", color: $model.settings.defaultAnnotationColor)
+                RGBAColorPicker(title: L10n.t("Default color", "デフォルト色"), color: $model.settings.defaultAnnotationColor)
                 pointSlider(
-                    "線幅",
+                    L10n.t("Line width", "線幅"),
                     value: $model.settings.defaultAnnotationLineWidth,
                     range: 1...30,
-                    accessibilityLabel: "デフォルトの線幅"
+                    accessibilityLabel: L10n.t("Default line width", "デフォルトの線幅")
                 )
                 percentSlider(
-                    "マーカー不透明度",
+                    L10n.t("Marker opacity", "マーカー不透明度"),
                     value: $model.settings.defaultMarkerOpacity,
                     range: 0.1...0.9,
-                    accessibilityLabel: "デフォルトのマーカー不透明度"
+                    accessibilityLabel: L10n.t("Default marker opacity", "デフォルトのマーカー不透明度")
                 )
             } header: {
-                Text("ツール")
+                Text(L10n.t("Tools", "ツール"))
             }
 
             Section {
-                settingsPicker("フォント", selection: $model.settings.defaultFontName) {
+                settingsPicker(L10n.t("Font", "フォント"), selection: $model.settings.defaultFontName) {
                     ForEach(["Helvetica", "Avenir Next", "Menlo", "Hiragino Sans"], id: \.self) {
                         Text($0).tag($0)
                     }
                 }
                 pointSlider(
-                    "フォントサイズ",
+                    L10n.t("Font size", "フォントサイズ"),
                     value: $model.settings.defaultFontSize,
                     range: 12...96,
                     unit: "pt",
-                    accessibilityLabel: "デフォルトのフォントサイズ"
+                    accessibilityLabel: L10n.t("Default font size", "デフォルトのフォントサイズ")
                 )
-                settingsPicker("テキスト揃え", selection: $model.settings.defaultTextAlignment) {
-                    ForEach(AnnotationTextAlignment.allCases) { Text($0.rawValue).tag($0) }
+                settingsPicker(L10n.t("Text alignment", "テキスト揃え"), selection: $model.settings.defaultTextAlignment) {
+                    ForEach(AnnotationTextAlignment.allCases) { Text($0.title).tag($0) }
                 }
             } header: {
-                Text("テキスト")
+                Text(L10n.t("Text", "テキスト"))
             }
 
             Section {
-                settingsPicker("完了後のアクション", selection: $model.settings.annotationCompletionAction) {
-                    ForEach(AnnotationCompletionAction.allCases) { Text($0.rawValue).tag($0) }
+                settingsPicker(L10n.t("After completion", "完了後のアクション"), selection: $model.settings.annotationCompletionAction) {
+                    ForEach(AnnotationCompletionAction.allCases) { Text($0.title).tag($0) }
                 }
-                settingsPicker("起動時のズーム", selection: $model.settings.editorInitialZoom) {
-                    ForEach(EditorInitialZoom.allCases) { Text($0.rawValue).tag($0) }
+                settingsPicker(L10n.t("Initial zoom", "起動時のズーム"), selection: $model.settings.editorInitialZoom) {
+                    ForEach(EditorInitialZoom.allCases) { Text($0.title).tag($0) }
                 }
             } header: {
-                Text("エディタ")
+                Text(L10n.t("Editor", "エディタ"))
             }
         }
-        .navigationTitle("注釈")
+        .navigationTitle(L10n.t("Annotation", "注釈"))
     }
 
     // MARK: - Privacy
@@ -540,12 +450,12 @@ struct SettingsView: View {
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(PermissionService.isGranted
-                              ? "画面キャプチャ権限は許可済みです"
-                              : "画面キャプチャ権限が必要です")
+                              ? L10n.t("Screen recording permission is granted", "画面キャプチャ権限は許可済みです")
+                              : L10n.t("Screen recording permission is required", "画面キャプチャ権限が必要です"))
                             .font(.body.weight(.medium))
                         Text(PermissionService.isGranted
-                              ? "選択した範囲の撮影が利用できます。"
-                              : "下のボタンで権限を要求すると、システム設定の一覧にCapMarkが現れます。オンにしたらCapMarkを再起動してください。")
+                              ? L10n.t("You can capture selected regions.", "選択した範囲の撮影が利用できます。")
+                              : L10n.t("Use the button below to request permission. CapMark appears in System Settings; turn it on, then restart CapMark.", "下のボタンで権限を要求すると、システム設定の一覧にCapMarkが現れます。オンにしたらCapMarkを再起動してください。"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -554,13 +464,13 @@ struct SettingsView: View {
                     Spacer(minLength: 8)
 
                     if !PermissionService.isGranted {
-                        Button("権限を許可する…") {
+                        Button(L10n.t("Grant Permission…", "権限を許可する…")) {
                             PermissionService.openSettings()
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
                     } else {
-                        Button("システム設定…") {
+                        Button(L10n.t("System Settings…", "システム設定…")) {
                             PermissionService.openSettings()
                         }
                         .controlSize(.small)
@@ -569,49 +479,39 @@ struct SettingsView: View {
                 .padding(.vertical, 4)
                 .accessibilityElement(children: .combine)
             } header: {
-                Text("権限")
+                Text(L10n.t("Permissions", "権限"))
             }
 
             Section {
                 Label {
-                    Text("画像は外部へ送信されません")
+                    Text(L10n.t("Images are never sent off this Mac", "画像は外部へ送信されません"))
                 } icon: {
                     Image(systemName: "lock.shield.fill")
                         .foregroundStyle(.secondary)
                 }
                 Label {
-                    Text("クリップボードは監視しません")
+                    Text(L10n.t("Clipboard is not monitored", "クリップボードは監視しません"))
                 } icon: {
                     Image(systemName: "eye.slash.fill")
                         .foregroundStyle(.secondary)
                 }
             } header: {
-                Text("プライバシー")
+                Text(L10n.t("Privacy", "プライバシー"))
             } footer: {
-                Text("撮影・注釈・履歴はすべてこのMac内にのみ保存されます。")
+                Text(L10n.t("Captures, annotations, and history stay only on this Mac.", "撮影・注釈・履歴はすべてこのMac内にのみ保存されます。"))
             }
 
             Section {
-                Button {
-                    model.clearCache()
-                } label: {
-                    Label("キャッシュを削除", systemImage: "internaldrive")
-                }
-                Button {
-                    model.clearLogs()
-                } label: {
-                    Label("ログを削除", systemImage: "doc.text")
-                }
-                Button("履歴をすべて削除", role: .destructive) {
+                Button(L10n.t("Delete All Data", "すべてのデータを削除"), role: .destructive) {
                     showDeleteConfirmation = true
                 }
             } header: {
-                Text("データ管理")
+                Text(L10n.t("Data Management", "データ管理"))
             } footer: {
-                Text("キャッシュ削除はサムネイルや一時ファイルを消去します。履歴削除は元画像と注釈も含みます。")
+                Text(L10n.t("Deletes history, cached files, and logs. Settings are kept.", "履歴・キャッシュ・ログを削除します。設定は保持されます。"))
             }
         }
-        .navigationTitle("プライバシー")
+        .navigationTitle(L10n.t("Privacy", "プライバシー"))
     }
 
     // MARK: - Controls
@@ -639,7 +539,7 @@ struct SettingsView: View {
                     .controlSize(.small)
                     .frame(maxWidth: 200)
                     .accessibilityLabel(accessibilityLabel)
-                    .accessibilityValue("\(Int(value.wrappedValue * 100))パーセント")
+                    .accessibilityValue(L10n.tf("%d percent", "%dパーセント", Int(value.wrappedValue * 100)))
                 Text("\(Int(value.wrappedValue * 100))%")
                     .font(.body.monospacedDigit())
                     .foregroundStyle(.secondary)
@@ -661,7 +561,7 @@ struct SettingsView: View {
                     .controlSize(.small)
                     .frame(maxWidth: 200)
                     .accessibilityLabel(accessibilityLabel)
-                    .accessibilityValue("\(Int(value.wrappedValue))ポイント")
+                    .accessibilityValue(L10n.tf("%d points", "%dポイント", Int(value.wrappedValue)))
                 Text("\(Int(value.wrappedValue))\(unit)")
                     .font(.body.monospacedDigit())
                     .foregroundStyle(.secondary)
@@ -669,6 +569,7 @@ struct SettingsView: View {
             }
         }
     }
+
 }
 
 // MARK: - Color
@@ -703,6 +604,13 @@ struct SetupView: View {
 
     private let pageCount = 6
 
+    private var languageBinding: Binding<AppLanguage> {
+        Binding(
+            get: { model.settings.preferredLanguage },
+            set: { model.setLanguage($0) }
+        )
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -716,6 +624,7 @@ struct SetupView: View {
         }
         .frame(minWidth: 640, minHeight: 480)
         .background(Color(nsColor: .windowBackgroundColor))
+        .observesLanguage()
     }
 
     private var header: some View {
@@ -725,9 +634,9 @@ struct SetupView: View {
                 .foregroundStyle(.tint)
                 .symbolRenderingMode(.hierarchical)
             VStack(alignment: .leading, spacing: 2) {
-                Text("CapMarkへようこそ")
+                Text(L10n.t("Welcome to CapMark", "CapMarkへようこそ"))
                     .font(.title2.weight(.semibold))
-                Text("ショートカットで切り取り、すぐ次の作業へ渡せます。")
+                Text(L10n.t("Capture with a shortcut and hand off to the next step.", "ショートカットで切り取り、すぐ次の作業へ渡せます。"))
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -748,28 +657,36 @@ struct SetupView: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("セットアップ \(page + 1) / \(pageCount)")
+        .accessibilityLabel(L10n.tf("Setup %d of %d", "セットアップ %d / %d", page + 1, pageCount))
     }
 
     @ViewBuilder
     private var pageContent: some View {
         switch page {
         case 0:
-            setupPage("完全にローカル", symbol: "lock.shield.fill") {
-                Text("撮影画像や注釈は、このMacの中だけに保存されます。外部サーバーへの送信やクリップボード監視は行いません。")
+            setupPage(L10n.t("Fully local", "完全にローカル"), symbol: "lock.shield.fill") {
+                Text(L10n.t("Captures and annotations stay on this Mac only. Nothing is sent to external servers, and the clipboard is not monitored.", "撮影画像や注釈は、このMacの中だけに保存されます。外部サーバーへの送信やクリップボード監視は行いません。"))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: 420)
+                Picker(L10n.t("Language", "言語"), selection: languageBinding) {
+                    ForEach(AppLanguage.allCases) { language in
+                        Text(language.displayName).tag(language)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth: 220)
+                .padding(.top, 8)
             }
         case 1:
-            setupPage("画面キャプチャ権限", symbol: "rectangle.dashed.badge.record") {
-                Text("選択した範囲を撮影するため、macOSの画面キャプチャ権限が必要です。")
+            setupPage(L10n.t("Screen Recording Permission", "画面キャプチャ権限"), symbol: "rectangle.dashed.badge.record") {
+                Text(L10n.t("macOS screen recording permission is required to capture selected regions.", "選択した範囲を撮影するため、macOSの画面キャプチャ権限が必要です。"))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: 420)
                 HStack(spacing: 12) {
                     Label(
-                        PermissionService.isGranted ? "許可済み" : "未許可",
+                        PermissionService.isGranted ? L10n.t("Granted", "許可済み") : L10n.t("Not granted", "未許可"),
                         systemImage: PermissionService.isGranted
                             ? "checkmark.circle.fill"
                             : "exclamationmark.triangle.fill"
@@ -777,19 +694,19 @@ struct SetupView: View {
                     .foregroundStyle(PermissionService.isGranted ? .green : .orange)
                     .symbolRenderingMode(.hierarchical)
                     if !PermissionService.isGranted {
-                        Button("権限を許可する…") {
+                        Button(L10n.t("Grant Permission…", "権限を許可する…")) {
                             PermissionService.openSettings()
                         }
                         .buttonStyle(.borderedProminent)
                     } else {
-                        Button("システム設定…") {
+                        Button(L10n.t("System Settings…", "システム設定…")) {
                             PermissionService.openSettings()
                         }
                     }
                 }
                 .padding(.top, 4)
                 if !PermissionService.isGranted {
-                    Text("ボタンを押すとシステム設定が開き、一覧にCapMarkが追加されます。スイッチをオンにしたあと、CapMarkを再起動してください。")
+                    Text(L10n.t("The button opens System Settings and adds CapMark to the list. Turn the switch on, then restart CapMark.", "ボタンを押すとシステム設定が開き、一覧にCapMarkが追加されます。スイッチをオンにしたあと、CapMarkを再起動してください。"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -798,8 +715,8 @@ struct SetupView: View {
                 }
             }
         case 2:
-            setupPage("グローバルショートカット", symbol: "command") {
-                Text("枠をクリックして、修飾キーを含む組み合わせを入力してください。撮影はこのショートカットからだけ開始します。")
+            setupPage(L10n.t("Global Shortcut", "グローバルショートカット"), symbol: "command") {
+                Text(L10n.t("Click the field and type a combination with modifier keys. Capture starts only from this shortcut.", "枠をクリックして、修飾キーを含む組み合わせを入力してください。撮影はこのショートカットからだけ開始します。"))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: 420)
@@ -815,35 +732,35 @@ struct SetupView: View {
                 }
             }
         case 3:
-            setupPage("履歴とShelf", symbol: "clock.arrow.circlepath") {
-                Text("撮影した画像を履歴に残し、画面隅のShelfからすぐ渡せます。")
+            setupPage(L10n.t("History & Temporary Display", "履歴と一時表示"), symbol: "clock.arrow.circlepath") {
+                Text(L10n.t("Keep captures in history and hand them off from the corner temporary display.", "撮影した画像を履歴に残し、画面隅の一時表示からすぐ渡せます。"))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: 420)
                 Form {
-                    Picker("履歴保持件数", selection: $model.settings.historyLimit) {
-                        ForEach([0, 5, 10, 20, 50, 100], id: \.self) { Text("\($0)件").tag($0) }
+                    Picker(L10n.t("History limit", "履歴保持件数"), selection: $model.settings.historyLimit) {
+                        ForEach([0, 5, 10, 20, 50, 100], id: \.self) { Text(L10n.tf("%d items", "%d件", $0)).tag($0) }
                     }
                     .pickerStyle(.menu)
                 }
                 .formStyle(.grouped)
                 .frame(maxWidth: 360)
-                Text("Shelfは最新の1件を、閉じるまで表示します。")
+                Text(L10n.t("Temporary display shows the latest item until you dismiss it.", "一時表示は最新の1件を、閉じるまで表示します。"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         case 4:
-            setupPage("常駐方法", symbol: "menubar.rectangle") {
-                Text("メニューバーから履歴や設定を開き、バックグラウンドで待機できます。")
+            setupPage(L10n.t("Stay Resident", "常駐方法"), symbol: "menubar.rectangle") {
+                Text(L10n.t("Open history and settings from the menu bar while CapMark waits in the background.", "メニューバーから履歴や設定を開き、バックグラウンドで待機できます。"))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: 420)
                 Form {
-                    Picker("メニューバー", selection: $model.settings.menuBarMode) {
-                        ForEach(MenuBarMode.allCases) { Text($0.rawValue).tag($0) }
+                    Picker(L10n.t("Menu bar", "メニューバー"), selection: $model.settings.menuBarMode) {
+                        ForEach(MenuBarMode.allCases) { Text($0.title).tag($0) }
                     }
                     .pickerStyle(.menu)
-                    Toggle("ログイン時にCapMarkを起動", isOn: $launchAtLogin)
+                    Toggle(L10n.t("Launch CapMark at login", "ログイン時にCapMarkを起動"), isOn: $launchAtLogin)
                         .onChange(of: launchAtLogin) { _, value in
                             model.setLaunchAtLogin(value)
                         }
@@ -852,11 +769,11 @@ struct SetupView: View {
                 .frame(maxWidth: 360)
             }
         default:
-            setupPage("準備完了", symbol: "checkmark.circle.fill") {
-                Text("CapMarkをバックグラウンドで起動しておき、\(model.settings.shortcut.display) を押して範囲を選択してください。")
+            setupPage(L10n.t("You're Ready", "準備完了"), symbol: "checkmark.circle.fill") {
+                Text(L10n.tf("Leave CapMark running in the background and press %@ to select a region.", "CapMarkをバックグラウンドで起動しておき、%@ を押して範囲を選択してください。", model.settings.shortcut.display))
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 420)
-                Text("ドラッグ後、Returnで確定します。Escでいつでもキャンセルできます。")
+                Text(L10n.t("After dragging, press Return to confirm. Press Esc anytime to cancel.", "ドラッグ後、Returnで確定します。Escでいつでもキャンセルできます。"))
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -872,15 +789,15 @@ struct SetupView: View {
                 .foregroundStyle(.secondary)
             Spacer()
             if page > 0 {
-                Button("戻る") { withAnimation(.easeInOut(duration: 0.15)) { page -= 1 } }
+                Button(L10n.t("Back", "戻る")) { withAnimation(.easeInOut(duration: 0.15)) { page -= 1 } }
                     .keyboardShortcut(.cancelAction)
             }
             if page < pageCount - 1 {
-                Button("次へ") { withAnimation(.easeInOut(duration: 0.15)) { page += 1 } }
+                Button(L10n.t("Next", "次へ")) { withAnimation(.easeInOut(duration: 0.15)) { page += 1 } }
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
             } else {
-                Button("セットアップを完了") {
+                Button(L10n.t("Finish Setup", "セットアップを完了")) {
                     model.settings.hasCompletedSetup = true
                     model.persistSettings()
                 }

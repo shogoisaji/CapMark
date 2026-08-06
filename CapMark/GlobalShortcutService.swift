@@ -9,7 +9,7 @@ final class GlobalShortcutService {
 
     func register(_ configuration: ShortcutConfiguration) -> Bool {
         unregister()
-        guard configuration.enabled, configuration.isConfigured else { return true }
+        guard configuration.isConfigured else { return true }
         var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
         let callback: EventHandlerUPP = { _, event, userData in
             guard let userData else { return noErr }

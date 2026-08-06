@@ -7,8 +7,12 @@ protocol UnderlyingErrorProviding {
 }
 
 enum ErrorPresentation {
-    static let diskSpaceGuidance =
-        "ディスクの空き容量を増やすため不要な履歴を削除するか、設定で保存先を変更してください。"
+    static var diskSpaceGuidance: String {
+        L10n.t(
+            "Free up disk space by deleting unused history items, or change the save destination in Settings.",
+            "ディスクの空き容量を増やすため不要な履歴を削除するか、設定で保存先を変更してください。"
+        )
+    }
 
     static func message(for error: Error) -> String {
         let description = error.localizedDescription
@@ -56,51 +60,209 @@ enum ErrorPresentation {
 }
 
 enum MenuBarMode: String, Codable, CaseIterable, Identifiable {
-    case always = "常に表示"
-    case duringProcessing = "撮影・処理中のみ"
-    case whenHistoryExists = "履歴ありの場合のみ"
-    case never = "常に非表示"
+    case always
+    case duringProcessing
+    case whenHistoryExists
+    case never
     var id: Self { self }
+    var title: String {
+        switch self {
+        case .always: L10n.t("Always show", "常に表示")
+        case .duringProcessing: L10n.t("Only while capturing or processing", "撮影・処理中のみ")
+        case .whenHistoryExists: L10n.t("Only when history exists", "履歴ありの場合のみ")
+        case .never: L10n.t("Always hide", "常に非表示")
+        }
+    }
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        let legacy: [String: Self] = [
+            "常に表示": .always,
+            "撮影・処理中のみ": .duringProcessing,
+            "履歴ありの場合のみ": .whenHistoryExists,
+            "常に非表示": .never,
+        ]
+        if let value = Self(rawValue: raw) {
+            self = value
+        } else if let value = legacy[raw] {
+            self = value
+        } else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown MenuBarMode: \(raw)"
+            )
+        }
+    }
 }
 
 enum DockMode: String, Codable, CaseIterable, Identifiable {
-    case never = "常に非表示"
-    case whileWindowOpen = "ウィンドウ表示中のみ"
-    case always = "常に表示"
+    case never
+    case whileWindowOpen
+    case always
     var id: Self { self }
+    var title: String {
+        switch self {
+        case .never: L10n.t("Always hide", "常に非表示")
+        case .whileWindowOpen: L10n.t("Only while a window is open", "ウィンドウ表示中のみ")
+        case .always: L10n.t("Always show", "常に表示")
+        }
+    }
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        let legacy: [String: Self] = [
+            "常に非表示": .never,
+            "ウィンドウ表示中のみ": .whileWindowOpen,
+            "常に表示": .always,
+        ]
+        if let value = Self(rawValue: raw) {
+            self = value
+        } else if let value = legacy[raw] {
+            self = value
+        } else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown DockMode: \(raw)"
+            )
+        }
+    }
 }
 
 enum StartupScreen: String, Codable, CaseIterable, Identifiable {
-    case none = "何も開かない"
-    case history = "履歴"
-    case settings = "設定"
+    case none
+    case history
+    case settings
     var id: Self { self }
+    var title: String {
+        switch self {
+        case .none: L10n.t("Open nothing", "何も開かない")
+        case .history: L10n.t("History", "履歴")
+        case .settings: L10n.t("Settings", "設定")
+        }
+    }
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        let legacy: [String: Self] = [
+            "何も開かない": .none,
+            "履歴": .history,
+            "設定": .settings,
+        ]
+        if let value = Self(rawValue: raw) {
+            self = value
+        } else if let value = legacy[raw] {
+            self = value
+        } else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown StartupScreen: \(raw)"
+            )
+        }
+    }
 }
 
 enum ShelfPosition: String, Codable, CaseIterable, Identifiable {
-    case bottomRight = "右下"
-    case bottomLeft = "左下"
-    case topRight = "右上"
-    case topLeft = "左上"
+    case bottomRight
+    case bottomLeft
+    case topRight
+    case topLeft
     var id: Self { self }
+    var title: String {
+        switch self {
+        case .bottomRight: L10n.t("Bottom right", "右下")
+        case .bottomLeft: L10n.t("Bottom left", "左下")
+        case .topRight: L10n.t("Top right", "右上")
+        case .topLeft: L10n.t("Top left", "左上")
+        }
+    }
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        let legacy: [String: Self] = [
+            "右下": .bottomRight,
+            "左下": .bottomLeft,
+            "右上": .topRight,
+            "左上": .topLeft,
+        ]
+        if let value = Self(rawValue: raw) {
+            self = value
+        } else if let value = legacy[raw] {
+            self = value
+        } else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown ShelfPosition: \(raw)"
+            )
+        }
+    }
 }
 
 enum ShelfThumbnailSize: String, Codable, CaseIterable, Identifiable {
-    case small = "小"
-    case medium = "中"
-    case large = "大"
+    case small
+    case medium
+    case large
     var id: Self { self }
+    var title: String {
+        switch self {
+        case .small: L10n.t("Small", "小")
+        case .medium: L10n.t("Medium", "中")
+        case .large: L10n.t("Large", "大")
+        }
+    }
     var width: CGFloat {
         switch self { case .small: 80; case .medium: 108; case .large: 148 }
     }
     var height: CGFloat { width * 0.76 }
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        let legacy: [String: Self] = [
+            "小": .small, "中": .medium, "大": .large,
+        ]
+        if let value = Self(rawValue: raw) {
+            self = value
+        } else if let value = legacy[raw] {
+            self = value
+        } else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown ShelfThumbnailSize: \(raw)"
+            )
+        }
+    }
 }
 
 enum ShelfAnimation: String, Codable, CaseIterable, Identifiable {
-    case none = "なし"
-    case fade = "フェード"
-    case slide = "スライド"
+    case none
+    case fade
+    case slide
     var id: Self { self }
+    var title: String {
+        switch self {
+        case .none: L10n.t("None", "なし")
+        case .fade: L10n.t("Fade", "フェード")
+        case .slide: L10n.t("Slide", "スライド")
+        }
+    }
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        let legacy: [String: Self] = [
+            "なし": .none,
+            "フェード": .fade,
+            "スライド": .slide,
+        ]
+        if let value = Self(rawValue: raw) {
+            self = value
+        } else if let value = legacy[raw] {
+            self = value
+        } else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown ShelfAnimation: \(raw)"
+            )
+        }
+    }
 }
 
 enum DragImageFormat: String, Codable, CaseIterable, Identifiable {
@@ -111,11 +273,19 @@ enum DragImageFormat: String, Codable, CaseIterable, Identifiable {
 }
 
 enum EditorInitialZoom: String, Codable, CaseIterable, Identifiable {
-    case fit = "ウィンドウに合わせる"
-    case actualSize = "100%"
-    case fiftyPercent = "50%"
-    case twoHundredPercent = "200%"
+    case fit
+    case actualSize
+    case fiftyPercent
+    case twoHundredPercent
     var id: Self { self }
+    var title: String {
+        switch self {
+        case .fit: L10n.t("Fit to window", "ウィンドウに合わせる")
+        case .actualSize: "100%"
+        case .fiftyPercent: "50%"
+        case .twoHundredPercent: "200%"
+        }
+    }
     var scale: CGFloat? {
         switch self {
         case .fit: nil
@@ -124,31 +294,107 @@ enum EditorInitialZoom: String, Codable, CaseIterable, Identifiable {
         case .twoHundredPercent: 2
         }
     }
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        let legacy: [String: Self] = [
+            "ウィンドウに合わせる": .fit,
+            "100%": .actualSize,
+            "50%": .fiftyPercent,
+            "200%": .twoHundredPercent,
+        ]
+        if let value = Self(rawValue: raw) {
+            self = value
+        } else if let value = legacy[raw] {
+            self = value
+        } else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown EditorInitialZoom: \(raw)"
+            )
+        }
+    }
 }
 
 enum PostCaptureAction: String, Codable, CaseIterable, Identifiable {
-    case shelfOnly = "Shelfのみ"
-    case autoCopy = "自動コピー"
-    case openAnnotation = "注釈を開く"
-    case saveDialog = "保存ダイアログ"
-    case autoSave = "自動保存"
-    case copyThenAnnotate = "コピーして注釈"
-    case annotateThenCopy = "注釈してコピー"
+    case shelfOnly
+    case autoCopy
+    case openAnnotation
+    case saveDialog
+    case autoSave
+    case copyThenAnnotate
+    case annotateThenCopy
     var id: Self { self }
+    var title: String {
+        switch self {
+        case .shelfOnly: L10n.t("Temporary display only", "一時表示のみ")
+        case .autoCopy: L10n.t("Auto copy", "自動コピー")
+        case .openAnnotation: L10n.t("Open annotation", "注釈を開く")
+        case .saveDialog: L10n.t("Save dialog", "保存ダイアログ")
+        case .autoSave: L10n.t("Auto save", "自動保存")
+        case .copyThenAnnotate: L10n.t("Copy then annotate", "コピーして注釈")
+        case .annotateThenCopy: L10n.t("Annotate then copy", "注釈してコピー")
+        }
+    }
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        let legacy: [String: Self] = [
+            "Shelfのみ": .shelfOnly,
+            "自動コピー": .autoCopy,
+            "注釈を開く": .openAnnotation,
+            "保存ダイアログ": .saveDialog,
+            "自動保存": .autoSave,
+            "コピーして注釈": .copyThenAnnotate,
+            "注釈してコピー": .annotateThenCopy,
+        ]
+        if let value = Self(rawValue: raw) {
+            self = value
+        } else if let value = legacy[raw] {
+            self = value
+        } else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown PostCaptureAction: \(raw)"
+            )
+        }
+    }
 }
 
 enum SaveDestination: String, Codable, CaseIterable, Identifiable {
     case desktop = "Desktop"
     case downloads = "Downloads"
     case pictures = "Pictures"
-    case custom = "任意フォルダ"
+    case custom
     var id: Self { self }
+    var title: String {
+        switch self {
+        case .desktop: "Desktop"
+        case .downloads: "Downloads"
+        case .pictures: "Pictures"
+        case .custom: L10n.t("Custom folder", "任意フォルダ")
+        }
+    }
     var searchDirectory: FileManager.SearchPathDirectory {
         switch self {
         case .desktop: .desktopDirectory
         case .downloads: .downloadsDirectory
         case .pictures: .picturesDirectory
         case .custom: .documentDirectory
+        }
+    }
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        if let value = Self(rawValue: raw) {
+            self = value
+        } else if raw == "任意フォルダ" {
+            self = .custom
+        } else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown SaveDestination: \(raw)"
+            )
         }
     }
 }
@@ -161,11 +407,39 @@ enum ExportFormat: String, Codable, CaseIterable, Identifiable {
 }
 
 enum FileCollisionPolicy: String, Codable, CaseIterable, Identifiable {
-    case addCounter = "連番を追加"
-    case confirmOverwrite = "上書き確認"
-    case alwaysOverwrite = "常に上書き"
-    case cancel = "保存を中止"
+    case addCounter
+    case confirmOverwrite
+    case alwaysOverwrite
+    case cancel
     var id: Self { self }
+    var title: String {
+        switch self {
+        case .addCounter: L10n.t("Add a counter", "連番を追加")
+        case .confirmOverwrite: L10n.t("Confirm overwrite", "上書き確認")
+        case .alwaysOverwrite: L10n.t("Always overwrite", "常に上書き")
+        case .cancel: L10n.t("Cancel save", "保存を中止")
+        }
+    }
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        let legacy: [String: Self] = [
+            "連番を追加": .addCounter,
+            "上書き確認": .confirmOverwrite,
+            "常に上書き": .alwaysOverwrite,
+            "保存を中止": .cancel,
+        ]
+        if let value = Self(rawValue: raw) {
+            self = value
+        } else if let value = legacy[raw] {
+            self = value
+        } else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown FileCollisionPolicy: \(raw)"
+            )
+        }
+    }
 }
 
 enum RetentionPeriod: Int, Codable, CaseIterable, Identifiable {
@@ -175,14 +449,45 @@ enum RetentionPeriod: Int, Codable, CaseIterable, Identifiable {
     case thirtyDays = 30
     case ninetyDays = 90
     var id: Self { self }
-    var title: String { self == .unlimited ? "制限なし" : "\(rawValue)日" }
+    var title: String {
+        if self == .unlimited {
+            return L10n.t("No limit", "制限なし")
+        }
+        return L10n.tf("%d days", "%d日", rawValue)
+    }
 }
 
 enum AnnotationCompletionAction: String, Codable, CaseIterable, Identifiable {
-    case none = "何もしない"
-    case copy = "コピー"
-    case save = "保存"
+    case none
+    case copy
+    case save
     var id: Self { self }
+    var title: String {
+        switch self {
+        case .none: L10n.t("Do nothing", "何もしない")
+        case .copy: L10n.t("Copy", "コピー")
+        case .save: L10n.t("Save", "保存")
+        }
+    }
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        let legacy: [String: Self] = [
+            "何もしない": .none,
+            "コピー": .copy,
+            "保存": .save,
+        ]
+        if let value = Self(rawValue: raw) {
+            self = value
+        } else if let value = legacy[raw] {
+            self = value
+        } else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown AnnotationCompletionAction: \(raw)"
+            )
+        }
+    }
 }
 
 struct ShortcutConfiguration: Codable, Equatable {
@@ -191,29 +496,31 @@ struct ShortcutConfiguration: Codable, Equatable {
     var shift = true
     var option = false
     var control = false
-    var enabled = true
     var isConfigured = true
 
     var display: String {
-        guard isConfigured else { return "未設定" }
+        guard isConfigured else { return L10n.t("Not set", "未設定") }
         return "\(control ? "⌃" : "")\(option ? "⌥" : "")\(shift ? "⇧" : "")\(command ? "⌘" : "")\(Self.keyName(keyCode))"
     }
 
     private enum CodingKeys: String, CodingKey {
-        case keyCode, command, shift, option, control, enabled, isConfigured
+        case keyCode, command, shift, option, control, isConfigured
+    }
+
+    private enum LegacyCodingKeys: String, CodingKey {
+        case enabled
     }
 
     init(
         keyCode: UInt32 = 19, command: Bool = true, shift: Bool = true,
         option: Bool = false, control: Bool = false,
-        enabled: Bool = true, isConfigured: Bool = true
+        isConfigured: Bool = true
     ) {
         self.keyCode = keyCode
         self.command = command
         self.shift = shift
         self.option = option
         self.control = control
-        self.enabled = enabled
         self.isConfigured = isConfigured
     }
 
@@ -224,8 +531,16 @@ struct ShortcutConfiguration: Codable, Equatable {
         shift = try values.decodeIfPresent(Bool.self, forKey: .shift) ?? true
         option = try values.decodeIfPresent(Bool.self, forKey: .option) ?? false
         control = try values.decodeIfPresent(Bool.self, forKey: .control) ?? false
-        enabled = try values.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
-        isConfigured = try values.decodeIfPresent(Bool.self, forKey: .isConfigured) ?? true
+        let configured = try values.decodeIfPresent(
+            Bool.self, forKey: .isConfigured
+        ) ?? true
+        let legacyValues = try decoder.container(
+            keyedBy: LegacyCodingKeys.self
+        )
+        let legacyEnabled = try legacyValues.decodeIfPresent(
+            Bool.self, forKey: .enabled
+        ) ?? true
+        isConfigured = configured && legacyEnabled
     }
 
     static func keyName(_ code: UInt32) -> String {
@@ -248,7 +563,6 @@ struct AppSettings: Codable, Equatable, Sendable {
     var dockMode = DockMode.never
     var startupScreen = StartupScreen.none
     var shelfPosition = ShelfPosition.bottomRight
-    var shelfEnabled = true
     var shelfThumbnailSize = ShelfThumbnailSize.medium
     var shelfAnimation = ShelfAnimation.fade
     var dragImageFormat = DragImageFormat.png
@@ -276,7 +590,6 @@ struct AppSettings: Codable, Equatable, Sendable {
     var preserveExportMetadata = false
     var pauseShelfTimerOnHover = true
     var soundEnabled = false
-    var notificationsEnabled = false
     var defaultAnnotationTool = AnnotationTool.arrow
     var defaultAnnotationColor = RGBAColor.red
     var defaultAnnotationLineWidth = 6.0
@@ -287,11 +600,12 @@ struct AppSettings: Codable, Equatable, Sendable {
     var annotationCompletionAction = AnnotationCompletionAction.none
     var editorInitialZoom = EditorInitialZoom.fit
     var hasCompletedSetup = false
+    var preferredLanguage = AppLanguage.english
 
     private enum CodingKeys: String, CodingKey {
         case shortcut, menuBarMode, dockMode, shelfPosition, shelfDuration, shelfLimit
         case startupScreen
-        case shelfEnabled, shelfThumbnailSize, shelfAnimation, dragImageFormat
+        case shelfThumbnailSize, shelfAnimation, dragImageFormat
         case historyLimit, includeCursor, postCaptureAction, retentionPeriod
         case historyEnabled, keepOriginalImages, cacheAnnotatedImages
         case deleteHistoryOnExit, pinnedItemsOutsideLimit
@@ -299,10 +613,10 @@ struct AppSettings: Codable, Equatable, Sendable {
         case exportFormat, jpegQuality, filenameTemplate, saveDestination
         case customSaveFolderBookmark, customSaveFolderName
         case fileCollisionPolicy, preserveExportMetadata
-        case pauseShelfTimerOnHover, soundEnabled, notificationsEnabled, hasCompletedSetup
+        case pauseShelfTimerOnHover, soundEnabled, hasCompletedSetup
         case defaultAnnotationTool, defaultAnnotationColor, defaultAnnotationLineWidth
         case defaultMarkerOpacity, defaultFontName, defaultFontSize, annotationCompletionAction
-        case defaultTextAlignment, editorInitialZoom
+        case defaultTextAlignment, editorInitialZoom, preferredLanguage
     }
 
     init() {}
@@ -314,11 +628,10 @@ struct AppSettings: Codable, Equatable, Sendable {
         dockMode = try values.decodeIfPresent(DockMode.self, forKey: .dockMode) ?? .never
         startupScreen = try values.decodeIfPresent(StartupScreen.self, forKey: .startupScreen) ?? .none
         shelfPosition = try values.decodeIfPresent(ShelfPosition.self, forKey: .shelfPosition) ?? .bottomRight
-        shelfEnabled = try values.decodeIfPresent(Bool.self, forKey: .shelfEnabled) ?? true
         shelfThumbnailSize = try values.decodeIfPresent(ShelfThumbnailSize.self, forKey: .shelfThumbnailSize) ?? .medium
         shelfAnimation = try values.decodeIfPresent(ShelfAnimation.self, forKey: .shelfAnimation) ?? .fade
         dragImageFormat = try values.decodeIfPresent(DragImageFormat.self, forKey: .dragImageFormat) ?? .png
-        shelfDuration = try values.decodeIfPresent(Double.self, forKey: .shelfDuration) ?? 10
+        shelfDuration = try values.decodeIfPresent(Double.self, forKey: .shelfDuration) ?? 0
         shelfLimit = try values.decodeIfPresent(Int.self, forKey: .shelfLimit) ?? 3
         historyLimit = try values.decodeIfPresent(Int.self, forKey: .historyLimit) ?? 20
         historyEnabled = try values.decodeIfPresent(Bool.self, forKey: .historyEnabled) ?? true
@@ -345,7 +658,6 @@ struct AppSettings: Codable, Equatable, Sendable {
         preserveExportMetadata = try values.decodeIfPresent(Bool.self, forKey: .preserveExportMetadata) ?? false
         pauseShelfTimerOnHover = try values.decodeIfPresent(Bool.self, forKey: .pauseShelfTimerOnHover) ?? true
         soundEnabled = try values.decodeIfPresent(Bool.self, forKey: .soundEnabled) ?? false
-        notificationsEnabled = try values.decodeIfPresent(Bool.self, forKey: .notificationsEnabled) ?? false
         defaultAnnotationTool = try values.decodeIfPresent(AnnotationTool.self, forKey: .defaultAnnotationTool) ?? .arrow
         defaultAnnotationColor = try values.decodeIfPresent(RGBAColor.self, forKey: .defaultAnnotationColor) ?? .red
         defaultAnnotationLineWidth = try values.decodeIfPresent(Double.self, forKey: .defaultAnnotationLineWidth) ?? 6
@@ -362,6 +674,7 @@ struct AppSettings: Codable, Equatable, Sendable {
             EditorInitialZoom.self, forKey: .editorInitialZoom
         ) ?? .fit
         hasCompletedSetup = try values.decodeIfPresent(Bool.self, forKey: .hasCompletedSetup) ?? false
+        preferredLanguage = try values.decodeIfPresent(AppLanguage.self, forKey: .preferredLanguage) ?? .english
     }
 }
 

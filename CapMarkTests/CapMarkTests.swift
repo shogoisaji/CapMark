@@ -5,8 +5,13 @@ import UniformTypeIdentifiers
 @testable import CapMark
 
 final class CapMarkTests: XCTestCase {
+    override func tearDown() {
+        L10n.language = .english
+        super.tearDown()
+    }
+
     func testShortcutRequiresModifierValidationInputs() {
-        let shortcut = ShortcutConfiguration(keyCode: 0, command: true, shift: false, option: false, control: false, enabled: true)
+        let shortcut = ShortcutConfiguration(keyCode: 0, command: true, shift: false, option: false, control: false)
         XCTAssertEqual(shortcut.display, "⌘A")
         XCTAssertTrue(ShortcutConflictValidator.isReserved(shortcut))
     }
@@ -63,7 +68,7 @@ final class CapMarkTests: XCTestCase {
         ))
         XCTAssertFalse(CaptureStartPolicy.allows(
             isCapturing: false, isEditing: false,
-            shortcut: ShortcutConfiguration(enabled: false, isConfigured: false)
+            shortcut: ShortcutConfiguration(isConfigured: false)
         ))
     }
 
@@ -320,8 +325,8 @@ final class CapMarkTests: XCTestCase {
 
         XCTAssertEqual(failure.item, item)
         XCTAssertTrue(
-            failure.localizedDescription.contains("一時的に保持"),
-            "保存失敗時に画像を失わず回収可能であることを利用者へ伝える"
+            failure.localizedDescription.contains("kept temporarily"),
+            "Save failure should tell the user the image remains recoverable"
         )
     }
 
@@ -816,44 +821,69 @@ final class CapMarkTests: XCTestCase {
         )
     }
 
-    func testTransientItemsAreRemovedWhenShelfIsDisabledAfterImmediateActions() {
-        for action in [PostCaptureAction.shelfOnly] {
-            XCTAssertTrue(
-                TransientLifecyclePolicy.removesAfterPostCapture(
-                    action: action, shelfEnabled: false
-                )
+    func testShelfAutoHidePolicyPausesForInteraction() {
+        XCTAssertTrue(
+            ShelfAutoHidePolicy.shouldSchedule(
+                isHovered: false,
+                activeOperationCount: 0,
+                pausesOnHover: true
             )
-        }
-        for action in [
-            PostCaptureAction.autoCopy, .saveDialog, .autoSave, .openAnnotation,
-            .copyThenAnnotate, .annotateThenCopy
-        ] {
-            XCTAssertFalse(
-                TransientLifecyclePolicy.removesAfterPostCapture(
-                    action: action, shelfEnabled: false
-                )
-            )
-        }
+        )
         XCTAssertFalse(
-            TransientLifecyclePolicy.removesAfterPostCapture(
-                action: .autoCopy, shelfEnabled: true
+            ShelfAutoHidePolicy.shouldSchedule(
+                isHovered: true,
+                activeOperationCount: 0,
+                pausesOnHover: true
+            )
+        )
+        XCTAssertTrue(
+            ShelfAutoHidePolicy.shouldSchedule(
+                isHovered: true,
+                activeOperationCount: 0,
+                pausesOnHover: false
+            )
+        )
+        XCTAssertFalse(
+            ShelfAutoHidePolicy.shouldSchedule(
+                isHovered: false,
+                activeOperationCount: 1,
+                pausesOnHover: false
+            )
+        )
+        XCTAssertTrue(
+            ShelfAutoHidePolicy.shouldDeferHide(
+                mouseButtonsPressed: true
             )
         )
     }
 
-    func testHistorySearchSupportsDisplayNameAndDimensionStyles() {
-        let item = sampleItem()
-        XCTAssertTrue(HistorySearch.matches(item, query: "test display"))
-        XCTAssertTrue(HistorySearch.matches(item, query: "400x240"))
-        XCTAssertTrue(HistorySearch.matches(item, query: "400×240"))
-        XCTAssertTrue(HistorySearch.matches(item, query: "400 × 240"))
-        XCTAssertTrue(HistorySearch.matches(item, query: "  "))
-        XCTAssertFalse(HistorySearch.matches(item, query: "1920x1080"))
+    func testPreferredLanguageDefaultsToEnglishAndLocalizesTitles() throws {
+        let settings = AppSettings()
+        XCTAssertEqual(settings.preferredLanguage, .english)
+
+        XCTAssertEqual(MenuBarMode.always.title, "Always show")
+        XCTAssertEqual(AnnotationTool.pen.title, "Pen")
+        XCTAssertEqual(L10n.t("History", "履歴"), "History")
+
+        L10n.language = .japanese
+        XCTAssertEqual(MenuBarMode.always.title, "常に表示")
+        XCTAssertEqual(AnnotationTool.pen.title, "ペン")
+        XCTAssertEqual(L10n.t("History", "履歴"), "履歴")
+    }
+
+    func testLegacyJapaneseEnumRawValuesStillDecode() throws {
+        let data = #""常に表示""#.data(using: .utf8)!
+        let mode = try JSONDecoder().decode(MenuBarMode.self, from: data)
+        XCTAssertEqual(mode, .always)
+
+        let toolData = #""矢印""#.data(using: .utf8)!
+        let tool = try JSONDecoder().decode(AnnotationTool.self, from: toolData)
+        XCTAssertEqual(tool, .arrow)
     }
 
     func testShortcutCanBeUnconfiguredAndMigratesOldData() throws {
-        let unconfigured = ShortcutConfiguration(enabled: false, isConfigured: false)
-        XCTAssertEqual(unconfigured.display, "未設定")
+        let unconfigured = ShortcutConfiguration(isConfigured: false)
+        XCTAssertEqual(unconfigured.display, "Not set")
 
         let legacyData = """
         {
@@ -868,6 +898,23 @@ final class CapMarkTests: XCTestCase {
         let migrated = try JSONDecoder().decode(ShortcutConfiguration.self, from: legacyData)
         XCTAssertTrue(migrated.isConfigured)
         XCTAssertEqual(migrated.display, "⇧⌘2")
+
+        let pausedData = """
+        {
+          "keyCode": 19,
+          "command": true,
+          "shift": true,
+          "option": false,
+          "control": false,
+          "enabled": false,
+          "isConfigured": true
+        }
+        """.data(using: .utf8)!
+        let paused = try JSONDecoder().decode(
+            ShortcutConfiguration.self, from: pausedData
+        )
+        XCTAssertFalse(paused.isConfigured)
+        XCTAssertEqual(paused.display, "Not set")
     }
 
     func testFilenameTemplateExpansion() {
@@ -1016,7 +1063,7 @@ final class CapMarkTests: XCTestCase {
 
         XCTAssertThrowsError(try AnnotationDocumentService.load(from: documentURL)) {
             XCTAssertTrue($0 is AnnotationDocumentReadError)
-            XCTAssertTrue($0.localizedDescription.contains("元画像は変更せず保持"))
+            XCTAssertTrue($0.localizedDescription.contains("original image was left unchanged"))
         }
         XCTAssertThrowsError(try ImageRenderer.latestPNG(for: item)) {
             XCTAssertTrue(
@@ -1628,7 +1675,7 @@ final class CapMarkTests: XCTestCase {
         XCTAssertTrue(ErrorPresentation.isOutOfDiskSpace(wrapped))
         XCTAssertTrue(
             ErrorPresentation.message(for: wrapped)
-                .contains("不要な履歴を削除")
+                .contains("Free up disk space")
         )
         XCTAssertFalse(ErrorPresentation.isOutOfDiskSpace(unrelated))
         XCTAssertFalse(

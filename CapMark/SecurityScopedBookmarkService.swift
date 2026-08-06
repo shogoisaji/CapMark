@@ -7,7 +7,7 @@ enum SecurityScopedBookmarkService {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true
-        panel.prompt = "保存先に設定"
+        panel.prompt = L10n.t("Set as Destination", "保存先に設定")
         guard panel.runModal() == .OK, let url = panel.url,
               let data = try? url.bookmarkData(
                 options: .withSecurityScope,

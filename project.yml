@@ -24,7 +24,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_FILE: CapMark/Info.plist
         INFOPLIST_KEY_LSUIElement: YES
-        INFOPLIST_KEY_NSScreenCaptureUsageDescription: "選択した範囲のスクリーンショットを撮影するために使用します。"
+        INFOPLIST_KEY_NSScreenCaptureUsageDescription: "CapMark uses screen recording to capture the region you select."
         ENABLE_HARDENED_RUNTIME: YES
         CODE_SIGN_ENTITLEMENTS: CapMark/CapMark.entitlements
     entitlements:

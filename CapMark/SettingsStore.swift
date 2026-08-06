@@ -6,11 +6,15 @@ struct SettingsLoadFailure: LocalizedError, UnderlyingErrorProviding {
 
     var errorDescription: String? {
         if let recoveryURL {
-            return "設定データが破損していたため、安全な場所へ退避して既定値で起動しました。\n"
-                + recoveryURL.path
+            return L10n.t(
+                "Settings data was corrupted, so it was moved aside and defaults were loaded.\n",
+                "設定データが破損していたため、安全な場所へ退避して既定値で起動しました。\n"
+            ) + recoveryURL.path
         }
-        return "設定データを読み込めず、退避にも失敗しました。元の設定ファイルは上書きしません。\n"
-            + underlyingError.localizedDescription
+        return L10n.t(
+            "Could not load settings and recovery failed. The original settings file was not overwritten.\n",
+            "設定データを読み込めず、退避にも失敗しました。元の設定ファイルは上書きしません。\n"
+        ) + underlyingError.localizedDescription
     }
 }
 
