@@ -196,9 +196,9 @@ struct AnnotationEditorView: View {
             HStack {
                 Button(L10n.t("Cancel", "キャンセル"), action: onCancel).keyboardShortcut(.cancelAction)
                 Divider().frame(height: 20)
-                Button { undo() } label: { Label("Undo", systemImage: "arrow.uturn.backward") }
+                Button { undo() } label: { Label(L10n.t("Undo", "取り消す"), systemImage: "arrow.uturn.backward") }
                     .disabled(undoStack.isEmpty).keyboardShortcut("z", modifiers: .command)
-                Button { redo() } label: { Label("Redo", systemImage: "arrow.uturn.forward") }
+                Button { redo() } label: { Label(L10n.t("Redo", "やり直す"), systemImage: "arrow.uturn.forward") }
                     .disabled(redoStack.isEmpty).keyboardShortcut("z", modifiers: [.command, .shift])
                 Button(role: .destructive) { deleteSelectionOrLast() } label: { Label(L10n.t("Delete", "削除"), systemImage: "trash") }
                     .disabled(document.annotations.isEmpty)

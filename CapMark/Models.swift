@@ -496,7 +496,6 @@ struct ShortcutConfiguration: Codable, Equatable {
     var shift = true
     var option = false
     var control = false
-    var enabled = true
     var isConfigured = true
 
     var display: String {
@@ -505,20 +504,19 @@ struct ShortcutConfiguration: Codable, Equatable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case keyCode, command, shift, option, control, enabled, isConfigured
+        case keyCode, command, shift, option, control, isConfigured
     }
 
     init(
         keyCode: UInt32 = 19, command: Bool = true, shift: Bool = true,
         option: Bool = false, control: Bool = false,
-        enabled: Bool = true, isConfigured: Bool = true
+        isConfigured: Bool = true
     ) {
         self.keyCode = keyCode
         self.command = command
         self.shift = shift
         self.option = option
         self.control = control
-        self.enabled = enabled
         self.isConfigured = isConfigured
     }
 
@@ -529,7 +527,6 @@ struct ShortcutConfiguration: Codable, Equatable {
         shift = try values.decodeIfPresent(Bool.self, forKey: .shift) ?? true
         option = try values.decodeIfPresent(Bool.self, forKey: .option) ?? false
         control = try values.decodeIfPresent(Bool.self, forKey: .control) ?? false
-        enabled = try values.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
         isConfigured = try values.decodeIfPresent(Bool.self, forKey: .isConfigured) ?? true
     }
 
@@ -553,7 +550,6 @@ struct AppSettings: Codable, Equatable, Sendable {
     var dockMode = DockMode.never
     var startupScreen = StartupScreen.none
     var shelfPosition = ShelfPosition.bottomRight
-    var shelfEnabled = true
     var shelfThumbnailSize = ShelfThumbnailSize.medium
     var shelfAnimation = ShelfAnimation.fade
     var dragImageFormat = DragImageFormat.png
@@ -596,7 +592,7 @@ struct AppSettings: Codable, Equatable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case shortcut, menuBarMode, dockMode, shelfPosition, shelfDuration, shelfLimit
         case startupScreen
-        case shelfEnabled, shelfThumbnailSize, shelfAnimation, dragImageFormat
+        case shelfThumbnailSize, shelfAnimation, dragImageFormat
         case historyLimit, includeCursor, postCaptureAction, retentionPeriod
         case historyEnabled, keepOriginalImages, cacheAnnotatedImages
         case deleteHistoryOnExit, pinnedItemsOutsideLimit
@@ -619,8 +615,6 @@ struct AppSettings: Codable, Equatable, Sendable {
         dockMode = try values.decodeIfPresent(DockMode.self, forKey: .dockMode) ?? .never
         startupScreen = try values.decodeIfPresent(StartupScreen.self, forKey: .startupScreen) ?? .none
         shelfPosition = try values.decodeIfPresent(ShelfPosition.self, forKey: .shelfPosition) ?? .bottomRight
-        // 一時表示は常に有効。旧バージョンの無効設定もここで移行する。
-        shelfEnabled = true
         shelfThumbnailSize = try values.decodeIfPresent(ShelfThumbnailSize.self, forKey: .shelfThumbnailSize) ?? .medium
         shelfAnimation = try values.decodeIfPresent(ShelfAnimation.self, forKey: .shelfAnimation) ?? .fade
         dragImageFormat = try values.decodeIfPresent(DragImageFormat.self, forKey: .dragImageFormat) ?? .png

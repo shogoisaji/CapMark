@@ -285,7 +285,7 @@ struct SettingsView: View {
                 }
                 settingsPicker(L10n.t("Auto-close", "自動で閉じる"), selection: $model.settings.shelfDuration) {
                     Text(L10n.t("Never", "閉じない")).tag(0.0)
-                    ForEach(temporaryDisplayDurations, id: \.self) { seconds in
+                    ForEach(Self.temporaryDisplayDurations, id: \.self) { seconds in
                         Text(L10n.tf("%d seconds", "%d秒", Int(seconds))).tag(seconds)
                     }
                 }
@@ -300,10 +300,6 @@ struct SettingsView: View {
 
     private static let temporaryDisplayDurations = [3.0, 5.0, 10.0, 15.0, 30.0, 60.0]
 
-    private var temporaryDisplayDurations: [Double] {
-        Self.temporaryDisplayDurations
-    }
-
     // MARK: - History & Save
 
     private var historyAndSavePane: some View {
@@ -312,7 +308,11 @@ struct SettingsView: View {
                 Toggle(L10n.t("Enable history", "履歴機能を使用"), isOn: $model.settings.historyEnabled)
                 settingsPicker(L10n.t("Maximum items", "最大保持件数"), selection: $model.settings.historyLimit) {
                     ForEach([0, 1, 5, 10, 20, 50, 100, 250, 500], id: \.self) {
-                        Text(L10n.tf("%d items", "%d件", $0)).tag($0)
+                        Text(
+                            $0 == 1
+                                ? L10n.t("1 item", "1件")
+                                : L10n.tf("%d items", "%d件", $0)
+                        ).tag($0)
                     }
                 }
                 .disabled(!model.settings.historyEnabled)

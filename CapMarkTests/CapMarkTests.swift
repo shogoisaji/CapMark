@@ -5,8 +5,13 @@ import UniformTypeIdentifiers
 @testable import CapMark
 
 final class CapMarkTests: XCTestCase {
+    override func tearDown() {
+        L10n.language = .english
+        super.tearDown()
+    }
+
     func testShortcutRequiresModifierValidationInputs() {
-        let shortcut = ShortcutConfiguration(keyCode: 0, command: true, shift: false, option: false, control: false, enabled: true)
+        let shortcut = ShortcutConfiguration(keyCode: 0, command: true, shift: false, option: false, control: false)
         XCTAssertEqual(shortcut.display, "⌘A")
         XCTAssertTrue(ShortcutConflictValidator.isReserved(shortcut))
     }
@@ -63,7 +68,7 @@ final class CapMarkTests: XCTestCase {
         ))
         XCTAssertFalse(CaptureStartPolicy.allows(
             isCapturing: false, isEditing: false,
-            shortcut: ShortcutConfiguration(enabled: false, isConfigured: false)
+            shortcut: ShortcutConfiguration(isConfigured: false)
         ))
     }
 
@@ -816,36 +821,10 @@ final class CapMarkTests: XCTestCase {
         )
     }
 
-    func testTransientItemsAreRemovedWhenShelfIsDisabledAfterImmediateActions() {
-        for action in [PostCaptureAction.shelfOnly] {
-            XCTAssertTrue(
-                TransientLifecyclePolicy.removesAfterPostCapture(
-                    action: action, shelfEnabled: false
-                )
-            )
-        }
-        for action in [
-            PostCaptureAction.autoCopy, .saveDialog, .autoSave, .openAnnotation,
-            .copyThenAnnotate, .annotateThenCopy
-        ] {
-            XCTAssertFalse(
-                TransientLifecyclePolicy.removesAfterPostCapture(
-                    action: action, shelfEnabled: false
-                )
-            )
-        }
-        XCTAssertFalse(
-            TransientLifecyclePolicy.removesAfterPostCapture(
-                action: .autoCopy, shelfEnabled: true
-            )
-        )
-    }
-
     func testPreferredLanguageDefaultsToEnglishAndLocalizesTitles() throws {
         let settings = AppSettings()
         XCTAssertEqual(settings.preferredLanguage, .english)
 
-        L10n.language = .english
         XCTAssertEqual(MenuBarMode.always.title, "Always show")
         XCTAssertEqual(AnnotationTool.pen.title, "Pen")
         XCTAssertEqual(L10n.t("History", "履歴"), "History")
@@ -854,7 +833,6 @@ final class CapMarkTests: XCTestCase {
         XCTAssertEqual(MenuBarMode.always.title, "常に表示")
         XCTAssertEqual(AnnotationTool.pen.title, "ペン")
         XCTAssertEqual(L10n.t("History", "履歴"), "履歴")
-        L10n.language = .english
     }
 
     func testLegacyJapaneseEnumRawValuesStillDecode() throws {
@@ -868,7 +846,7 @@ final class CapMarkTests: XCTestCase {
     }
 
     func testShortcutCanBeUnconfiguredAndMigratesOldData() throws {
-        let unconfigured = ShortcutConfiguration(enabled: false, isConfigured: false)
+        let unconfigured = ShortcutConfiguration(isConfigured: false)
         XCTAssertEqual(unconfigured.display, "Not set")
 
         let legacyData = """

@@ -29,7 +29,7 @@ enum AnnotationTool: String, Codable, CaseIterable, Identifiable, Sendable {
         case .text: L10n.t("Text", "テキスト")
         case .blackout: L10n.t("Blackout", "黒塗り")
         case .mosaic: L10n.t("Pixelate", "モザイク")
-        case .crop: "Crop"
+        case .crop: L10n.t("Crop", "切り抜き")
         }
     }
 

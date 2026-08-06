@@ -20,21 +20,6 @@ enum DockVisibilityPolicy {
     }
 }
 
-enum TransientLifecyclePolicy {
-    static func removesAfterPostCapture(
-        action: PostCaptureAction, shelfEnabled: Bool
-    ) -> Bool {
-        guard !shelfEnabled else { return false }
-        return switch action {
-        case .shelfOnly:
-            true
-        case .autoCopy, .saveDialog, .autoSave, .openAnnotation,
-             .copyThenAnnotate, .annotateThenCopy:
-            false
-        }
-    }
-}
-
 @MainActor
 final class AppModel: ObservableObject {
     static let shared = AppModel()
@@ -67,7 +52,6 @@ final class AppModel: ObservableObject {
     private var temporaryFileMaintenanceTask: Task<Void, Never>?
 
     func start(isLoginItemLaunch: Bool = false) {
-        settings.shelfEnabled = true
         LanguageCenter.shared.apply(settings.preferredLanguage)
         Task { await LogService.shared.record(.appStarted) }
         if let settingsLoadFailure = SettingsStore.shared.consumeLoadFailure() {
@@ -308,13 +292,7 @@ final class AppModel: ObservableObject {
                 ) { [weak self] document in
                     guard let self else { return }
                     Task {
-                        if await self.finishEditing(
-                            item: item, document: document
-                        ) != nil,
-                           self.transientURLs[item.id] != nil,
-                           !self.settings.shelfEnabled {
-                            self.removeTransient(id: item.id)
-                        }
+                        await self.finishEditing(item: item, document: document)
                         self.isEditing = false
                         self.isCapturing = false
                         self.menuBar.update()
@@ -370,13 +348,8 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func copy(
-        _ item: CaptureItem,
-        removesTransientWhenDone: Bool = false
-    ) {
-        performCopy(
-            item, removesTransientWhenDone: removesTransientWhenDone
-        ) {
+    func copy(_ item: CaptureItem) {
+        performCopy(item) {
             try await ClipboardService.copy(item)
         }
     }
@@ -402,9 +375,6 @@ final class AppModel: ObservableObject {
         FileExportService.save(item, settings: settings) { [weak self] ids in
             guard let self else { return }
             if !ids.isEmpty { recordSaved(ids) }
-            if transientURLs[item.id] != nil, !settings.shelfEnabled {
-                removeTransient(id: item.id)
-            }
         }
     }
 
@@ -475,9 +445,6 @@ final class AppModel: ObservableObject {
     func editorDidFinish(_ item: CaptureItem) {
         if copyAfterEditing.remove(item.id) != nil {
             copy(item)
-            if transientURLs[item.id] != nil, !settings.shelfEnabled {
-                removeTransient(id: item.id)
-            }
             return
         }
         switch settings.annotationCompletionAction {
@@ -485,16 +452,12 @@ final class AppModel: ObservableObject {
         case .copy: copy(item)
         case .save: save(item)
         }
-        if transientURLs[item.id] != nil, !settings.shelfEnabled {
-            removeTransient(id: item.id)
-        }
     }
 
     func editorDidCancel(_ id: UUID) {
         copyAfterEditing.remove(id)
         if transientURLs[id] != nil {
-            if settings.shelfEnabled { presentShelf() }
-            else { removeTransient(id: id) }
+            presentShelf()
         }
     }
 
@@ -589,70 +552,58 @@ final class AppModel: ObservableObject {
     }
 
     func deleteAllHistory() {
-        let deletedCount = history.count
         shelfItems.removeAll()
         shelf.hide()
-        Task {
-            await historyPreparationTask?.value
-            do {
-                try await historyStore.deleteAll()
-                refreshHistory()
-                await LogService.shared.record(
-                    .historyCleaned, code: .count(deletedCount)
-                )
-            } catch {
-                reportHistoryMutationError(error)
-            }
-        }
+        Task { await performDeleteAllHistory() }
     }
 
     func deleteAllData() {
-        let deletedCount = history.count
         shelfItems.removeAll()
         shelf.hide()
         ThumbnailImageCache.shared.removeAll()
         Task {
-            await historyPreparationTask?.value
-            do {
-                try await historyStore.deleteAll()
-                refreshHistory()
-                await LogService.shared.record(
-                    .historyCleaned, code: .count(deletedCount)
-                )
-            } catch {
-                reportHistoryMutationError(error)
-            }
-            do {
-                try await Task.detached(priority: .utility) {
-                    try CacheCleanupService.clear()
-                }.value
-                refreshHistory()
-            } catch {
-                showError(L10n.t("Could not clear the cache.\n", "キャッシュを削除できませんでした。\n") + error.localizedDescription)
-                await LogService.shared.record(
-                    .cacheCleanupFailed,
-                    code: .errorType(String(describing: type(of: error)))
-                )
-            }
+            await performDeleteAllHistory()
+            await performClearCache()
             await LogService.shared.clear()
         }
     }
 
     func clearCache() {
         ThumbnailImageCache.shared.removeAll()
-        Task {
-            do {
-                try await Task.detached(priority: .utility) {
-                    try CacheCleanupService.clear()
-                }.value
-                refreshHistory()
-            } catch {
-                showError(L10n.t("Could not clear the cache.\n", "キャッシュを削除できませんでした。\n") + error.localizedDescription)
-                await LogService.shared.record(
-                    .cacheCleanupFailed,
-                    code: .errorType(String(describing: type(of: error)))
-                )
-            }
+        Task { await performClearCache() }
+    }
+
+    private func performDeleteAllHistory() async {
+        let deletedCount = history.count
+        await historyPreparationTask?.value
+        do {
+            try await historyStore.deleteAll()
+            refreshHistory()
+            await LogService.shared.record(
+                .historyCleaned, code: .count(deletedCount)
+            )
+        } catch {
+            reportHistoryMutationError(error)
+        }
+    }
+
+    private func performClearCache() async {
+        do {
+            try await Task.detached(priority: .utility) {
+                try CacheCleanupService.clear()
+            }.value
+            refreshHistory()
+        } catch {
+            showError(
+                L10n.t(
+                    "Could not clear the cache.\n",
+                    "キャッシュを削除できませんでした。\n"
+                ) + error.localizedDescription
+            )
+            await LogService.shared.record(
+                .cacheCleanupFailed,
+                code: .errorType(String(describing: type(of: error)))
+            )
         }
     }
 
@@ -775,7 +726,7 @@ final class AppModel: ObservableObject {
         case .shelfOnly:
             presentShelf()
         case .autoCopy:
-            copy(item, removesTransientWhenDone: true)
+            copy(item)
             presentShelf()
             return
         case .openAnnotation:
@@ -802,9 +753,6 @@ final class AppModel: ObservableObject {
                     )
                     showError(ErrorPresentation.message(for: error))
                 }
-                if transientURLs[item.id] != nil, !settings.shelfEnabled {
-                    removeTransient(id: item.id)
-                }
             }
             presentShelf()
             return
@@ -814,13 +762,6 @@ final class AppModel: ObservableObject {
         case .annotateThenCopy:
             copyAfterEditing.insert(item.id)
             edit(item)
-        }
-        if transientURLs[item.id] != nil,
-           TransientLifecyclePolicy.removesAfterPostCapture(
-            action: settings.postCaptureAction,
-            shelfEnabled: settings.shelfEnabled
-           ) {
-            removeTransient(id: item.id)
         }
     }
 
@@ -848,7 +789,6 @@ final class AppModel: ObservableObject {
 
     private func performCopy(
         _ item: CaptureItem,
-        removesTransientWhenDone: Bool = false,
         operation: @escaping @MainActor () async throws -> Bool
     ) {
         Task {
@@ -870,11 +810,6 @@ final class AppModel: ObservableObject {
                         ? .annotationDataCorrupt : .exportFailed,
                     code: .errorType(String(describing: type(of: error)))
                 )
-            }
-            if removesTransientWhenDone,
-               transientURLs[item.id] != nil,
-               !settings.shelfEnabled {
-                removeTransient(id: item.id)
             }
         }
     }

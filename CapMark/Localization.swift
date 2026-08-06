@@ -47,7 +47,7 @@ enum L10n {
         return String(format: template, locale: locale, arguments: arguments)
     }
 
-    nonisolated private static var locale: Locale {
+    nonisolated static var locale: Locale {
         language == .japanese
             ? Locale(identifier: "ja_JP")
             : Locale(identifier: "en_US_POSIX")
@@ -66,15 +66,5 @@ private struct ObservesLanguageModifier: ViewModifier {
 extension View {
     func observesLanguage() -> some View {
         modifier(ObservesLanguageModifier())
-    }
-}
-
-// MARK: - Codable migration (legacy Japanese raw values)
-
-enum LocalizedEnumCoding {
-    /// Returns a stable English raw value, accepting either the new key or a legacy Japanese label.
-    static func resolve(_ raw: String, legacyToRaw: [String: String]) -> String? {
-        if legacyToRaw.values.contains(raw) { return raw }
-        return legacyToRaw[raw]
     }
 }

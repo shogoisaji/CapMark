@@ -120,6 +120,9 @@ struct HistoryView: View {
         }
         .frame(minWidth: 640, minHeight: 420, alignment: .topLeading)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .onChange(of: model.history.map(\.id)) { _, historyIDs in
+            selection.formIntersection(historyIDs)
+        }
         .confirmationDialog(
             L10n.tf(
                 "Delete %d history items and related files?",
@@ -237,7 +240,7 @@ struct HistoryListRow: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    Text(item.createdAt.formatted())
+                    Text(item.createdAt.formatted(.dateTime.locale(L10n.locale)))
                         .font(.headline)
                         .lineLimit(1)
                     if item.isPinned {
@@ -506,7 +509,10 @@ struct CaptureInfoView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(L10n.t("Capture Info", "撮影情報")).font(.title2.bold())
-            LabeledContent(L10n.t("Captured", "撮影日時"), value: item.createdAt.formatted())
+            LabeledContent(
+                L10n.t("Captured", "撮影日時"),
+                value: item.createdAt.formatted(.dateTime.locale(L10n.locale))
+            )
             LabeledContent(L10n.t("Pixel size", "ピクセルサイズ"), value: "\(item.pixelWidth) × \(item.pixelHeight)")
             LabeledContent(L10n.t("Display", "ディスプレイ"), value: item.displayName)
             LabeledContent(L10n.t("Display ID", "ディスプレイID"), value: "\(item.displayID)")
@@ -521,11 +527,13 @@ struct CaptureInfoView: View {
             LabeledContent(L10n.t("Annotations", "注釈数"), value: "\(item.annotationCount)")
             LabeledContent(
                 L10n.t("Last copy", "最終コピー"),
-                value: item.lastCopiedAt?.formatted() ?? L10n.t("Never", "未実行")
+                value: item.lastCopiedAt?.formatted(.dateTime.locale(L10n.locale))
+                    ?? L10n.t("Never", "未実行")
             )
             LabeledContent(
                 L10n.t("Last save", "最終保存"),
-                value: item.lastSavedAt?.formatted() ?? L10n.t("Never", "未実行")
+                value: item.lastSavedAt?.formatted(.dateTime.locale(L10n.locale))
+                    ?? L10n.t("Never", "未実行")
             )
             HStack {
                 Spacer()

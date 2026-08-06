@@ -24,6 +24,7 @@ struct ShortcutRecorderView: NSViewRepresentable {
 
     func updateNSView(_ view: ShortcutRecorderNSView, context: Context) {
         view.display = configuration.display
+        view.isUnset = !configuration.isConfigured
     }
 }
 
@@ -35,6 +36,11 @@ final class ShortcutRecorderNSView: NSView {
                 needsDisplay = true
                 NSAccessibility.post(element: self, notification: .valueChanged)
             }
+        }
+    }
+    var isUnset = false {
+        didSet {
+            if isUnset != oldValue { needsDisplay = true }
         }
     }
     private var recording = false
@@ -107,7 +113,6 @@ final class ShortcutRecorderNSView: NSView {
         value.shift = flags.contains(.shift)
         value.option = flags.contains(.option)
         value.control = flags.contains(.control)
-        value.enabled = true
         value.isConfigured = true
         recording = false
         onShortcut?(value)
@@ -156,7 +161,7 @@ final class ShortcutRecorderNSView: NSView {
         let weight: NSFont.Weight = recording ? .regular : .semibold
         let color: NSColor = recording
             ? .secondaryLabelColor
-            : (display == L10n.t("Not set", "未設定") || display.isEmpty ? .secondaryLabelColor : .labelColor)
+            : (isUnset || display.isEmpty ? .secondaryLabelColor : .labelColor)
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 14, weight: weight),
             .foregroundColor: color
