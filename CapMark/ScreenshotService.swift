@@ -71,9 +71,12 @@ enum CaptureError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .displayUnavailable: "対象ディスプレイを利用できません。"
-        case .selectionTooSmall: "選択範囲が小さすぎます。"
-        case .busy: "別の撮影処理を実行中です。"
+        case .displayUnavailable:
+            L10n.t("The target display is unavailable.", "対象ディスプレイを利用できません。")
+        case .selectionTooSmall:
+            L10n.t("The selection is too small.", "選択範囲が小さすぎます。")
+        case .busy:
+            L10n.t("Another capture is already in progress.", "別の撮影処理を実行中です。")
         }
     }
 }

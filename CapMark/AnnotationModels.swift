@@ -3,19 +3,36 @@ import CoreGraphics
 import AppKit
 
 enum AnnotationTool: String, Codable, CaseIterable, Identifiable, Sendable {
-    case select = "選択"
-    case pen = "ペン"
-    case marker = "マーカー"
-    case line = "直線"
-    case arrow = "矢印"
-    case rectangle = "四角形"
-    case ellipse = "楕円"
-    case text = "テキスト"
-    case blackout = "黒塗り"
-    case mosaic = "モザイク"
-    case crop = "Crop"
+    case select
+    case pen
+    case marker
+    case line
+    case arrow
+    case rectangle
+    case ellipse
+    case text
+    case blackout
+    case mosaic
+    case crop
 
     var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .select: L10n.t("Select", "選択")
+        case .pen: L10n.t("Pen", "ペン")
+        case .marker: L10n.t("Marker", "マーカー")
+        case .line: L10n.t("Line", "直線")
+        case .arrow: L10n.t("Arrow", "矢印")
+        case .rectangle: L10n.t("Rectangle", "四角形")
+        case .ellipse: L10n.t("Ellipse", "楕円")
+        case .text: L10n.t("Text", "テキスト")
+        case .blackout: L10n.t("Blackout", "黒塗り")
+        case .mosaic: L10n.t("Pixelate", "モザイク")
+        case .crop: "Crop"
+        }
+    }
+
     var symbol: String {
         switch self {
         case .select: "arrow.up.left"
@@ -32,20 +49,65 @@ enum AnnotationTool: String, Codable, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// 撮影直後の簡易注釈ツールバーで使えるツールか
+    /// Whether the tool is available on the post-capture quick toolbar.
     var isQuickTool: Bool {
         switch self {
         case .pen, .rectangle, .ellipse, .text: true
         default: false
         }
     }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        let legacy: [String: Self] = [
+            "選択": .select, "ペン": .pen, "マーカー": .marker, "直線": .line,
+            "矢印": .arrow, "四角形": .rectangle, "楕円": .ellipse,
+            "テキスト": .text, "黒塗り": .blackout, "モザイク": .mosaic,
+            "Crop": .crop,
+        ]
+        if let value = Self(rawValue: raw) {
+            self = value
+        } else if let value = legacy[raw] {
+            self = value
+        } else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown AnnotationTool: \(raw)"
+            )
+        }
+    }
 }
 
 enum AnnotationTextAlignment: String, Codable, CaseIterable, Identifiable, Sendable {
-    case left = "左揃え"
-    case center = "中央"
-    case right = "右揃え"
+    case left
+    case center
+    case right
     var id: Self { self }
+    var title: String {
+        switch self {
+        case .left: L10n.t("Left", "左揃え")
+        case .center: L10n.t("Center", "中央")
+        case .right: L10n.t("Right", "右揃え")
+        }
+    }
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        let legacy: [String: Self] = [
+            "左揃え": .left, "中央": .center, "右揃え": .right,
+        ]
+        if let value = Self(rawValue: raw) {
+            self = value
+        } else if let value = legacy[raw] {
+            self = value
+        } else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown AnnotationTextAlignment: \(raw)"
+            )
+        }
+    }
 }
 
 struct RGBAColor: Codable, Hashable, Sendable {
@@ -104,7 +166,10 @@ struct AnnotationDocumentReadError: LocalizedError, UnderlyingErrorProviding {
     let underlyingError: Error
 
     var errorDescription: String? {
-        "注釈データを読み込めません。元画像は変更せず保持されています。\n\(underlyingError.localizedDescription)"
+        L10n.t(
+            "Could not load annotation data. The original image was left unchanged.\n",
+            "注釈データを読み込めません。元画像は変更せず保持されています。\n"
+        ) + underlyingError.localizedDescription
     }
 }
 

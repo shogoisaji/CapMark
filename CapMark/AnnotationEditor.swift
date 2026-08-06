@@ -74,7 +74,7 @@ final class AnnotationEditorController: NSObject, NSWindowDelegate {
         }
         .environmentObject(model)
         let window = NSWindow(contentViewController: NSHostingController(rootView: view))
-        window.title = "CapMark 注釈"
+        window.title = L10n.t("CapMark Annotation", "CapMark 注釈")
         window.setContentSize(CGSize(width: 1100, height: 760))
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         window.isReleasedWhenClosed = false
@@ -84,6 +84,13 @@ final class AnnotationEditorController: NSObject, NSWindowDelegate {
         drafts[item.id] = document
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
+    }
+
+    func applyLocalization() {
+        let title = L10n.t("CapMark Annotation", "CapMark 注釈")
+        for window in windows.values {
+            window.title = title
+        }
     }
 
     func windowWillClose(_ notification: Notification) {
@@ -106,11 +113,11 @@ final class AnnotationEditorController: NSObject, NSWindowDelegate {
         guard let id = windows.first(where: { $0.value === sender })?.key,
               dirtyIDs.contains(id) else { return true }
         let alert = NSAlert()
-        alert.messageText = "変更を保存しますか？"
-        alert.informativeText = "この注釈には未保存の変更があります。"
-        alert.addButton(withTitle: "保存")
-        alert.addButton(withTitle: "破棄")
-        alert.addButton(withTitle: "キャンセル")
+        alert.messageText = L10n.t("Save changes?", "変更を保存しますか？")
+        alert.informativeText = L10n.t("This annotation has unsaved changes.", "この注釈には未保存の変更があります。")
+        alert.addButton(withTitle: L10n.t("Save", "保存"))
+        alert.addButton(withTitle: L10n.t("Discard", "破棄"))
+        alert.addButton(withTitle: L10n.t("Cancel", "キャンセル"))
         switch alert.runModal() {
         case .alertFirstButtonReturn:
             guard let draft = drafts[id],
@@ -187,51 +194,51 @@ struct AnnotationEditorView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Button("キャンセル", action: onCancel).keyboardShortcut(.cancelAction)
+                Button(L10n.t("Cancel", "キャンセル"), action: onCancel).keyboardShortcut(.cancelAction)
                 Divider().frame(height: 20)
                 Button { undo() } label: { Label("Undo", systemImage: "arrow.uturn.backward") }
                     .disabled(undoStack.isEmpty).keyboardShortcut("z", modifiers: .command)
                 Button { redo() } label: { Label("Redo", systemImage: "arrow.uturn.forward") }
                     .disabled(redoStack.isEmpty).keyboardShortcut("z", modifiers: [.command, .shift])
-                Button(role: .destructive) { deleteSelectionOrLast() } label: { Label("削除", systemImage: "trash") }
+                Button(role: .destructive) { deleteSelectionOrLast() } label: { Label(L10n.t("Delete", "削除"), systemImage: "trash") }
                     .disabled(document.annotations.isEmpty)
                     .keyboardShortcut(.delete, modifiers: [])
-                Button { sendBackward() } label: { Label("背面へ", systemImage: "square.2.layers.3d.bottom.filled") }
+                Button { sendBackward() } label: { Label(L10n.t("Send Backward", "背面へ"), systemImage: "square.2.layers.3d.bottom.filled") }
                     .disabled(selectedID == nil)
-                Button { bringForward() } label: { Label("前面へ", systemImage: "square.2.layers.3d.top.filled") }
+                Button { bringForward() } label: { Label(L10n.t("Bring Forward", "前面へ"), systemImage: "square.2.layers.3d.top.filled") }
                     .disabled(selectedID == nil)
-                Menu("選択") {
-                    Button("次の注釈") { selectAnnotation(movesForward: true) }
+                Menu(L10n.t("Select", "選択")) {
+                    Button(L10n.t("Next Annotation", "次の注釈")) { selectAnnotation(movesForward: true) }
                         .keyboardShortcut("]", modifiers: .option)
-                    Button("前の注釈") { selectAnnotation(movesForward: false) }
+                    Button(L10n.t("Previous Annotation", "前の注釈")) { selectAnnotation(movesForward: false) }
                         .keyboardShortcut("[", modifiers: .option)
                 }
                 .disabled(document.annotations.isEmpty)
-                .accessibilityLabel("注釈を選択")
-                Menu("移動") {
-                    Button("上へ1ピクセル") { moveSelected(dx: 0, dy: -1) }
+                .accessibilityLabel(L10n.t("Select annotation", "注釈を選択"))
+                Menu(L10n.t("Move", "移動")) {
+                    Button(L10n.t("Up 1 px", "上へ1ピクセル")) { moveSelected(dx: 0, dy: -1) }
                         .keyboardShortcut(.upArrow, modifiers: [])
-                    Button("下へ1ピクセル") { moveSelected(dx: 0, dy: 1) }
+                    Button(L10n.t("Down 1 px", "下へ1ピクセル")) { moveSelected(dx: 0, dy: 1) }
                         .keyboardShortcut(.downArrow, modifiers: [])
-                    Button("左へ1ピクセル") { moveSelected(dx: -1, dy: 0) }
+                    Button(L10n.t("Left 1 px", "左へ1ピクセル")) { moveSelected(dx: -1, dy: 0) }
                         .keyboardShortcut(.leftArrow, modifiers: [])
-                    Button("右へ1ピクセル") { moveSelected(dx: 1, dy: 0) }
+                    Button(L10n.t("Right 1 px", "右へ1ピクセル")) { moveSelected(dx: 1, dy: 0) }
                         .keyboardShortcut(.rightArrow, modifiers: [])
                     Divider()
-                    Button("上へ10ピクセル") { moveSelected(dx: 0, dy: -10) }
+                    Button(L10n.t("Up 10 px", "上へ10ピクセル")) { moveSelected(dx: 0, dy: -10) }
                         .keyboardShortcut(.upArrow, modifiers: .shift)
-                    Button("下へ10ピクセル") { moveSelected(dx: 0, dy: 10) }
+                    Button(L10n.t("Down 10 px", "下へ10ピクセル")) { moveSelected(dx: 0, dy: 10) }
                         .keyboardShortcut(.downArrow, modifiers: .shift)
-                    Button("左へ10ピクセル") { moveSelected(dx: -10, dy: 0) }
+                    Button(L10n.t("Left 10 px", "左へ10ピクセル")) { moveSelected(dx: -10, dy: 0) }
                         .keyboardShortcut(.leftArrow, modifiers: .shift)
-                    Button("右へ10ピクセル") { moveSelected(dx: 10, dy: 0) }
+                    Button(L10n.t("Right 10 px", "右へ10ピクセル")) { moveSelected(dx: 10, dy: 0) }
                         .keyboardShortcut(.rightArrow, modifiers: .shift)
                 }
                 .disabled(selectedID == nil)
-                .accessibilityLabel("選択した注釈を移動")
+                .accessibilityLabel(L10n.t("Move selected annotation", "選択した注釈を移動"))
                 Spacer()
-                Button("全体表示") { zoomScale = nil }
-                    .help("画像全体をウィンドウに合わせる")
+                Button(L10n.t("Fit", "全体表示")) { zoomScale = nil }
+                    .help(L10n.t("Fit the whole image to the window", "画像全体をウィンドウに合わせる"))
                 Menu {
                     Button("50%") { zoomScale = 0.5 }
                     Button("100%") { zoomScale = 1 }
@@ -240,12 +247,12 @@ struct AnnotationEditorView: View {
                     Text(zoomScale.map { "\(Int($0 * 100))%" } ?? "Fit")
                         .monospacedDigit()
                 }
-                .accessibilityLabel("表示倍率")
-                Button("コピー") { saveThenCopy() }
+                .accessibilityLabel(L10n.t("Zoom level", "表示倍率"))
+                Button(L10n.t("Copy", "コピー")) { saveThenCopy() }
                     .keyboardShortcut("c", modifiers: .command)
-                Button("保存…") { saveThenExport() }
+                Button(L10n.t("Save…", "保存…")) { saveThenExport() }
                     .keyboardShortcut("s", modifiers: .command)
-                Button("完了") { onComplete(document, .done) }
+                Button(L10n.t("Done", "完了")) { onComplete(document, .done) }
                     .buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
             }.padding(10)
             Divider()
@@ -290,62 +297,63 @@ struct AnnotationEditorView: View {
             }
             Divider()
             HStack {
-                ColorPicker("色", selection: colorBinding, supportsOpacity: true).frame(width: 120)
+                ColorPicker(L10n.t("Color", "色"), selection: colorBinding, supportsOpacity: true).frame(width: 120)
                 Slider(value: $lineWidth, in: 1...30)
-                    .accessibilityLabel("線幅")
-                    .accessibilityValue("\(Int(lineWidth))ポイント")
-                Text("線幅 \(Int(lineWidth))").monospacedDigit().frame(width: 70)
+                    .accessibilityLabel(L10n.t("Line width", "線幅"))
+                    .accessibilityValue(L10n.tf("%d points", "%dポイント", Int(lineWidth)))
+                Text(L10n.tf("Width %d", "線幅 %d", Int(lineWidth))).monospacedDigit().frame(width: 70)
                 Slider(value: Binding(
                     get: { color.alpha },
                     set: { color.alpha = $0 }
                 ), in: 0.1...1)
-                .accessibilityLabel("不透明度")
-                .accessibilityValue("\(Int(color.alpha * 100))パーセント")
-                Text("不透明度 \(Int(color.alpha * 100))%").monospacedDigit().frame(width: 100)
+                .accessibilityLabel(L10n.t("Opacity", "不透明度"))
+                .accessibilityValue(L10n.tf("%d percent", "%dパーセント", Int(color.alpha * 100)))
+                Text(L10n.tf("Opacity %d%%", "不透明度 %d%%", Int(color.alpha * 100))).monospacedDigit().frame(width: 100)
                 if tool == .text {
-                    Picker("フォント", selection: $fontName) {
+                    Picker(L10n.t("Font", "フォント"), selection: $fontName) {
                         ForEach(["Helvetica", "Avenir Next", "Menlo", "Hiragino Sans"], id: \.self) {
                             Text($0).tag($0)
                         }
                     }.frame(width: 150)
-                    Picker("揃え", selection: $textAlignment) {
-                        ForEach(AnnotationTextAlignment.allCases) { Text($0.rawValue).tag($0) }
+                    Picker(L10n.t("Align", "揃え"), selection: $textAlignment) {
+                        ForEach(AnnotationTextAlignment.allCases) { Text($0.title).tag($0) }
                     }.frame(width: 100)
                     Slider(value: $fontSize, in: 12...96)
-                        .accessibilityLabel("フォントサイズ")
-                        .accessibilityValue("\(Int(fontSize))ポイント")
+                        .accessibilityLabel(L10n.t("Font size", "フォントサイズ"))
+                        .accessibilityValue(L10n.tf("%d points", "%dポイント", Int(fontSize)))
                     Text("\(Int(fontSize))pt").monospacedDigit().frame(width: 55)
                 }
                 if tool == .rectangle || tool == .ellipse {
-                    Toggle("塗り", isOn: $fillEnabled).toggleStyle(.checkbox)
+                    Toggle(L10n.t("Fill", "塗り"), isOn: $fillEnabled).toggleStyle(.checkbox)
                     if fillEnabled {
-                        ColorPicker("塗り色", selection: fillColorBinding, supportsOpacity: true)
+                        ColorPicker(L10n.t("Fill Color", "塗り色"), selection: fillColorBinding, supportsOpacity: true)
                             .frame(width: 100)
                     }
                 }
                 if tool == .arrow {
-                    Toggle("始点に矢印", isOn: $arrowAtStart).toggleStyle(.checkbox)
+                    Toggle(L10n.t("Arrow at start", "始点に矢印"), isOn: $arrowAtStart).toggleStyle(.checkbox)
                 }
                 Spacer()
-                Text("\(document.annotations.count)個の注釈")
+                Text(L10n.tf("%d annotations", "%d個の注釈", document.annotations.count))
                     .foregroundStyle(.secondary)
             }.padding(10)
         }
         .sheet(isPresented: $showTextEntry) {
             VStack(alignment: .leading, spacing: 14) {
-                Text("テキストを追加").font(.headline)
-                TextField("テキスト", text: $textValue).textFieldStyle(.roundedBorder)
+                Text(L10n.t("Add Text", "テキストを追加")).font(.headline)
+                TextField(L10n.t("Text", "テキスト"), text: $textValue).textFieldStyle(.roundedBorder)
                     .onSubmit(addText)
                 HStack {
                     Spacer()
-                    Button("キャンセル") { showTextEntry = false }
-                    Button("追加", action: addText).buttonStyle(.borderedProminent)
+                    Button(L10n.t("Cancel", "キャンセル")) { showTextEntry = false }
+                    Button(L10n.t("Add", "追加"), action: addText).buttonStyle(.borderedProminent)
                 }
             }.padding(22).frame(width: 380)
         }
         .onChange(of: document) { _, value in
             onDocumentChange(value)
         }
+        .observesLanguage()
         .task(id: item.originalURL) {
             guard let data = await ImageLoadingService.readData(from: item.originalURL),
                   !Task.isCancelled else { return }
@@ -716,7 +724,7 @@ private struct AnnotationToolChip: View {
                             .fill(iconPlateFill)
                     }
 
-                Text(tool.rawValue)
+                Text(tool.title)
                     .font(.system(size: 10, weight: selected ? .semibold : .medium))
                     .foregroundStyle(selected ? Color.accentColor : Color.secondary)
                     .lineLimit(1)
@@ -742,10 +750,10 @@ private struct AnnotationToolChip: View {
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
         .onHover { hovering = $0 }
-        .help(tool.rawValue)
-        .accessibilityLabel(tool.rawValue)
+        .help(tool.title)
+        .accessibilityLabel(tool.title)
         .accessibilityAddTraits(selected ? .isSelected : [])
-        .accessibilityValue(selected ? "選択中" : "未選択")
+        .accessibilityValue(selected ? L10n.t("Selected", "選択中") : L10n.t("Not selected", "未選択"))
     }
 
     private var iconPlateFill: some ShapeStyle {

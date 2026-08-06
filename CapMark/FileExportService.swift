@@ -22,26 +22,27 @@ private struct ExportAccessoryView: View {
 
     var body: some View {
         Form {
-            Picker("形式", selection: $options.format) {
+            Picker(L10n.t("Format", "形式"), selection: $options.format) {
                 ForEach(ExportFormat.allCases) { Text($0.rawValue).tag($0) }
             }
             if options.format == .jpeg {
                 HStack {
                     Slider(value: $options.jpegQuality, in: 0.1...1)
-                        .accessibilityLabel("JPEG品質")
-                        .accessibilityValue("\(Int(options.jpegQuality * 100))パーセント")
+                        .accessibilityLabel(L10n.t("JPEG quality", "JPEG品質"))
+                        .accessibilityValue(L10n.tf("%d percent", "%dパーセント", Int(options.jpegQuality * 100)))
                     Text("\(Int(options.jpegQuality * 100))%")
                         .monospacedDigit().frame(width: 45)
                 }
             }
-            Picker("画像", selection: $options.exportsOriginal) {
-                Text("注釈済み画像").tag(false)
-                Text("元画像").tag(true)
+            Picker(L10n.t("Image", "画像"), selection: $options.exportsOriginal) {
+                Text(L10n.t("Annotated image", "注釈済み画像")).tag(false)
+                Text(L10n.t("Original image", "元画像")).tag(true)
             }
-            Toggle("メタデータを保持", isOn: $options.preservesMetadata)
+            Toggle(L10n.t("Preserve metadata", "メタデータを保持"), isOn: $options.preservesMetadata)
         }
         .padding(12)
         .frame(width: 330)
+        .observesLanguage()
     }
 }
 
@@ -164,7 +165,7 @@ enum FileExportService {
                     code: .errorType(String(describing: type(of: error)))
                 )
                 let alert = NSAlert()
-                alert.messageText = "画像を保存できませんでした"
+                alert.messageText = L10n.t("Could not save the image", "画像を保存できませんでした")
                 alert.informativeText = ErrorPresentation.message(for: error)
                 alert.runModal()
             }
@@ -181,7 +182,7 @@ enum FileExportService {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
-        panel.prompt = "ここに保存"
+        panel.prompt = L10n.t("Save Here", "ここに保存")
         guard panel.runModal() == .OK, let directory = panel.url else {
             onFinished([])
             return
@@ -203,11 +204,11 @@ enum FileExportService {
                 destination = url
             case let .confirm(url):
                 let alert = NSAlert()
-                alert.messageText = "同名のファイルがあります"
+                alert.messageText = L10n.t("A file with the same name exists", "同名のファイルがあります")
                 alert.informativeText =
-                    "\(url.lastPathComponent)を上書きしますか？"
-                alert.addButton(withTitle: "上書き")
-                alert.addButton(withTitle: "この項目を保存しない")
+                    L10n.tf("Overwrite %@?", "%@を上書きしますか？", url.lastPathComponent)
+                alert.addButton(withTitle: L10n.t("Overwrite", "上書き"))
+                alert.addButton(withTitle: L10n.t("Skip This Item", "この項目を保存しない"))
                 guard alert.runModal() == .alertFirstButtonReturn else {
                     continue
                 }
@@ -258,8 +259,8 @@ enum FileExportService {
             onFinished(outcome.0)
             if !outcome.1.isEmpty {
                 let alert = NSAlert()
-                alert.messageText = "一部の画像を保存できませんでした"
-                alert.informativeText = "\(outcome.1.count)件の保存に失敗しました。"
+                alert.messageText = L10n.t("Some images could not be saved", "一部の画像を保存できませんでした")
+                alert.informativeText = L10n.tf("%d items failed to save.", "%d件の保存に失敗しました。", outcome.1.count)
                     + (outcome.2 ? "\n\(ErrorPresentation.diskSpaceGuidance)" : "")
                 alert.runModal()
             }
@@ -303,10 +304,10 @@ enum FileExportService {
                 throw CocoaError(.userCancelled)
             case .confirmOverwrite:
                 let alert = NSAlert()
-                alert.messageText = "同名のファイルがあります"
-                alert.informativeText = "既存のファイルを上書きしますか？"
-                alert.addButton(withTitle: "上書き")
-                alert.addButton(withTitle: "キャンセル")
+                alert.messageText = L10n.t("A file with the same name exists", "同名のファイルがあります")
+                alert.informativeText = L10n.t("Overwrite the existing file?", "既存のファイルを上書きしますか？")
+                alert.addButton(withTitle: L10n.t("Overwrite", "上書き"))
+                alert.addButton(withTitle: L10n.t("Cancel", "キャンセル"))
                 guard alert.runModal() == .alertFirstButtonReturn else {
                     throw CocoaError(.userCancelled)
                 }

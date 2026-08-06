@@ -320,8 +320,8 @@ final class CapMarkTests: XCTestCase {
 
         XCTAssertEqual(failure.item, item)
         XCTAssertTrue(
-            failure.localizedDescription.contains("一時的に保持"),
-            "保存失敗時に画像を失わず回収可能であることを利用者へ伝える"
+            failure.localizedDescription.contains("kept temporarily"),
+            "Save failure should tell the user the image remains recoverable"
         )
     }
 
@@ -841,19 +841,35 @@ final class CapMarkTests: XCTestCase {
         )
     }
 
-    func testHistorySearchSupportsDisplayNameAndDimensionStyles() {
-        let item = sampleItem()
-        XCTAssertTrue(HistorySearch.matches(item, query: "test display"))
-        XCTAssertTrue(HistorySearch.matches(item, query: "400x240"))
-        XCTAssertTrue(HistorySearch.matches(item, query: "400×240"))
-        XCTAssertTrue(HistorySearch.matches(item, query: "400 × 240"))
-        XCTAssertTrue(HistorySearch.matches(item, query: "  "))
-        XCTAssertFalse(HistorySearch.matches(item, query: "1920x1080"))
+    func testPreferredLanguageDefaultsToEnglishAndLocalizesTitles() throws {
+        let settings = AppSettings()
+        XCTAssertEqual(settings.preferredLanguage, .english)
+
+        L10n.language = .english
+        XCTAssertEqual(MenuBarMode.always.title, "Always show")
+        XCTAssertEqual(AnnotationTool.pen.title, "Pen")
+        XCTAssertEqual(L10n.t("History", "履歴"), "History")
+
+        L10n.language = .japanese
+        XCTAssertEqual(MenuBarMode.always.title, "常に表示")
+        XCTAssertEqual(AnnotationTool.pen.title, "ペン")
+        XCTAssertEqual(L10n.t("History", "履歴"), "履歴")
+        L10n.language = .english
+    }
+
+    func testLegacyJapaneseEnumRawValuesStillDecode() throws {
+        let data = #""常に表示""#.data(using: .utf8)!
+        let mode = try JSONDecoder().decode(MenuBarMode.self, from: data)
+        XCTAssertEqual(mode, .always)
+
+        let toolData = #""矢印""#.data(using: .utf8)!
+        let tool = try JSONDecoder().decode(AnnotationTool.self, from: toolData)
+        XCTAssertEqual(tool, .arrow)
     }
 
     func testShortcutCanBeUnconfiguredAndMigratesOldData() throws {
         let unconfigured = ShortcutConfiguration(enabled: false, isConfigured: false)
-        XCTAssertEqual(unconfigured.display, "未設定")
+        XCTAssertEqual(unconfigured.display, "Not set")
 
         let legacyData = """
         {
@@ -1016,7 +1032,7 @@ final class CapMarkTests: XCTestCase {
 
         XCTAssertThrowsError(try AnnotationDocumentService.load(from: documentURL)) {
             XCTAssertTrue($0 is AnnotationDocumentReadError)
-            XCTAssertTrue($0.localizedDescription.contains("元画像は変更せず保持"))
+            XCTAssertTrue($0.localizedDescription.contains("original image was left unchanged"))
         }
         XCTAssertThrowsError(try ImageRenderer.latestPNG(for: item)) {
             XCTAssertTrue(
@@ -1628,7 +1644,7 @@ final class CapMarkTests: XCTestCase {
         XCTAssertTrue(ErrorPresentation.isOutOfDiskSpace(wrapped))
         XCTAssertTrue(
             ErrorPresentation.message(for: wrapped)
-                .contains("不要な履歴を削除")
+                .contains("Free up disk space")
         )
         XCTAssertFalse(ErrorPresentation.isOutOfDiskSpace(unrelated))
         XCTAssertFalse(

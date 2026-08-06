@@ -3,6 +3,6 @@
 <plist version="1.0">
 <dict>
 	<key>NSScreenCaptureUsageDescription</key>
-	<string>選択した範囲のスクリーンショットを撮影するために使用します。</string>
+	<string>CapMark uses screen recording to capture the region you select.</string>
 </dict>
 </plist>

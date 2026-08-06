@@ -83,6 +83,7 @@ final class ShelfController {
             animation: model.settings.shelfAnimation,
             position: model.settings.shelfPosition
         )
+        scheduleAutoHide(after: model.settings.shelfDuration)
     }
 
     func hide() {
@@ -136,9 +137,26 @@ final class ShelfController {
             }
         }
     }
+
+    private func scheduleAutoHide(after duration: Double) {
+        hideTask?.cancel()
+        guard duration > 0 else {
+            hideTask = nil
+            return
+        }
+        hideTask = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(for: .seconds(duration))
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            self?.hide()
+        }
+    }
 }
 
-/// 撮影直後の右下プレビュー。
+/// 撮影直後に画面の四隅へ表示する一時プレビュー。
 /// 構造: [画像（枠1本）] → [操作アイコン] を1枚の角丸カードに収める。
 struct ShelfView: View {
     @EnvironmentObject private var model: AppModel
@@ -149,6 +167,11 @@ struct ShelfView: View {
     private let imageCorner: CGFloat = 8
 
     var body: some View {
+        shelfContent
+            .observesLanguage()
+    }
+
+    private var shelfContent: some View {
         VStack(spacing: 0) {
             AsyncImageView(url: item.thumbnailURL)
                 .frame(width: thumb.width, height: thumb.height)
@@ -165,18 +188,18 @@ struct ShelfView: View {
                     DragExportService.itemProvider(for: item, model: model)
                 }
                 .accessibilityLabel(
-                    "\(item.pixelWidth)×\(item.pixelHeight)のスクリーンショット"
+                    L10n.tf("%d×%d screenshot", "%d×%dのスクリーンショット", item.pixelWidth, item.pixelHeight)
                 )
-                .accessibilityHint("ドラッグして他のアプリへ渡せます。")
+                .accessibilityHint(L10n.t("Drag to hand off to other apps.", "ドラッグして他のアプリへ渡せます。"))
 
             HStack(spacing: 6) {
-                ShelfIconButton(systemImage: "doc.on.clipboard", help: "クリップボードへコピー") {
+                ShelfIconButton(systemImage: "doc.on.clipboard", help: L10n.t("Copy to Clipboard", "クリップボードへコピー")) {
                     model.copy(item)
                 }
-                ShelfIconButton(systemImage: "square.and.arrow.down", help: "ファイルへ保存") {
+                ShelfIconButton(systemImage: "square.and.arrow.down", help: L10n.t("Save to File", "ファイルへ保存")) {
                     model.save(item)
                 }
-                ShelfIconButton(systemImage: "xmark", help: "閉じる") {
+                ShelfIconButton(systemImage: "xmark", help: L10n.t("Close", "閉じる")) {
                     model.dismissShelf()
                 }
             }
@@ -197,12 +220,12 @@ struct ShelfView: View {
         .compositingGroup()
         .shadow(color: .black.opacity(0.28), radius: 10, y: 4)
         .contextMenu {
-            Button("コピー") { model.copy(item) }
-            Button("保存…") { model.save(item) }
-            Button("編集") { model.edit(item) }
+            Button(L10n.t("Copy", "コピー")) { model.copy(item) }
+            Button(L10n.t("Save…", "保存…")) { model.save(item) }
+            Button(L10n.t("Edit", "編集")) { model.edit(item) }
             Divider()
-            Button("閉じる") { model.dismissShelf() }
-            Button("削除", role: .destructive) { model.delete(item) }
+            Button(L10n.t("Close", "閉じる")) { model.dismissShelf() }
+            Button(L10n.t("Delete", "削除"), role: .destructive) { model.delete(item) }
         }
     }
 }
@@ -229,6 +252,7 @@ private struct ShelfIconButton: View {
 
 struct AsyncImageView: View {
     let url: URL
+    var contentMode: ContentMode = .fit
     @State private var image: NSImage?
 
     var body: some View {
@@ -236,12 +260,12 @@ struct AsyncImageView: View {
             if let image {
                 Image(nsImage: image)
                     .resizable()
-                    .scaledToFit()
+                    .aspectRatio(contentMode: contentMode)
             } else {
                 ProgressView()
                     .controlSize(.small)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .accessibilityLabel("画像を読み込み中")
+                    .accessibilityLabel(L10n.t("Loading image", "画像を読み込み中"))
             }
         }
         .task(id: url) {

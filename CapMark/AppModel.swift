@@ -6,7 +6,7 @@ enum CaptureStartPolicy {
     static func allows(
         isCapturing: Bool, isEditing: Bool, shortcut: ShortcutConfiguration
     ) -> Bool {
-        !isCapturing && !isEditing && shortcut.enabled && shortcut.isConfigured
+        !isCapturing && !isEditing && shortcut.isConfigured
     }
 }
 
@@ -67,6 +67,8 @@ final class AppModel: ObservableObject {
     private var temporaryFileMaintenanceTask: Task<Void, Never>?
 
     func start(isLoginItemLaunch: Bool = false) {
+        settings.shelfEnabled = true
+        LanguageCenter.shared.apply(settings.preferredLanguage)
         Task { await LogService.shared.record(.appStarted) }
         if let settingsLoadFailure = SettingsStore.shared.consumeLoadFailure() {
             showError(settingsLoadFailure.localizedDescription)
@@ -186,7 +188,22 @@ final class AppModel: ObservableObject {
         await LogService.shared.record(.appStopped)
     }
 
+    func setLanguage(_ language: AppLanguage) {
+        LanguageCenter.shared.apply(language)
+        settings.preferredLanguage = language
+        persistSettings()
+        applyLocalizationToWindows()
+    }
+
+    func applyLocalizationToWindows() {
+        menuBar.update()
+        historyWindow.applyLocalization()
+        settingsWindow.applyLocalization()
+        annotationEditor.applyLocalization()
+    }
+
     func persistSettings() {
+        LanguageCenter.shared.apply(settings.preferredLanguage)
         let requestedShortcut = settings.shortcut
         shortcutRegistrationFailed = !shortcutService.register(requestedShortcut)
         Task { await LogService.shared.record(shortcutRegistrationFailed ? .shortcutRegistrationFailed : .shortcutRegistered) }
@@ -205,7 +222,7 @@ final class AppModel: ObservableObject {
                     try SettingsStore.shared.save(settingsSnapshot)
                 }.value
             } catch {
-                showError("設定を保存できませんでした。\n\(error.localizedDescription)")
+                showError(L10n.t("Could not save settings.\n", "設定を保存できませんでした。\n") + error.localizedDescription)
                 await LogService.shared.record(
                     .settingsSaveFailed,
                     code: .errorType(String(describing: type(of: error)))
@@ -245,7 +262,7 @@ final class AppModel: ObservableObject {
             Task { await LogService.shared.record(.permissionDenied) }
             // request() inside openSettings registers CapMark in the TCC list first
             PermissionService.openSettings()
-            errorMessage = "画面キャプチャ権限を許可してください。システム設定でCapMarkをオンにしたあと、アプリを再起動してください。"
+            errorMessage = L10n.t("Please allow screen recording. Turn CapMark on in System Settings, then restart the app.", "画面キャプチャ権限を許可してください。システム設定でCapMarkをオンにしたあと、アプリを再起動してください。")
             showSettings()
             return
         }
@@ -399,7 +416,7 @@ final class AppModel: ObservableObject {
 
     func edit(_ item: CaptureItem) {
         guard history.contains(where: { $0.id == item.id }) || transientURLs[item.id] != nil else {
-            errorMessage = "この画像はすでに一時Shelfから削除されています。"
+            errorMessage = L10n.t("This image was already removed from the temporary display.", "この画像はすでに一時表示から削除されています。")
             return
         }
         let document: CaptureDocument
@@ -589,6 +606,38 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func deleteAllData() {
+        let deletedCount = history.count
+        shelfItems.removeAll()
+        shelf.hide()
+        ThumbnailImageCache.shared.removeAll()
+        Task {
+            await historyPreparationTask?.value
+            do {
+                try await historyStore.deleteAll()
+                refreshHistory()
+                await LogService.shared.record(
+                    .historyCleaned, code: .count(deletedCount)
+                )
+            } catch {
+                reportHistoryMutationError(error)
+            }
+            do {
+                try await Task.detached(priority: .utility) {
+                    try CacheCleanupService.clear()
+                }.value
+                refreshHistory()
+            } catch {
+                showError(L10n.t("Could not clear the cache.\n", "キャッシュを削除できませんでした。\n") + error.localizedDescription)
+                await LogService.shared.record(
+                    .cacheCleanupFailed,
+                    code: .errorType(String(describing: type(of: error)))
+                )
+            }
+            await LogService.shared.clear()
+        }
+    }
+
     func clearCache() {
         ThumbnailImageCache.shared.removeAll()
         Task {
@@ -598,7 +647,7 @@ final class AppModel: ObservableObject {
                 }.value
                 refreshHistory()
             } catch {
-                showError("キャッシュを削除できませんでした。\n\(error.localizedDescription)")
+                showError(L10n.t("Could not clear the cache.\n", "キャッシュを削除できませんでした。\n") + error.localizedDescription)
                 await LogService.shared.record(
                     .cacheCleanupFailed,
                     code: .errorType(String(describing: type(of: error)))
@@ -613,7 +662,9 @@ final class AppModel: ObservableObject {
 
     func resetSettings() {
         settings = AppSettings()
+        LanguageCenter.shared.apply(settings.preferredLanguage)
         persistSettings()
+        applyLocalizationToWindows()
     }
 
     func applyActivationPolicy(windowIsOpen: Bool) {
@@ -658,7 +709,6 @@ final class AppModel: ObservableObject {
     }
 
     func showShelf() {
-        guard settings.shelfEnabled else { return }
         let source = shelfItems.isEmpty
             ? Array(history.prefix(1))
             : Array(shelfItems.prefix(1))
@@ -877,7 +927,6 @@ final class AppModel: ObservableObject {
     }
 
     private func presentShelf() {
-        guard settings.shelfEnabled else { return }
         shelf.show(items: Array(shelfItems.prefix(1)), model: self)
     }
 
