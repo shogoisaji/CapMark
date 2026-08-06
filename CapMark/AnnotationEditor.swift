@@ -99,6 +99,7 @@ final class AnnotationEditorController: NSObject, NSWindowDelegate {
             windows.removeValue(forKey: id)
             drafts.removeValue(forKey: id)
             dirtyIDs.remove(id)
+            model?.editorWindowDidClose(id)
         }
         if windows.isEmpty {
             Task { @MainActor [weak model] in

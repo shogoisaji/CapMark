@@ -18,6 +18,20 @@ enum ShelfGeometry {
     }
 }
 
+enum ShelfAutoHidePolicy {
+    static func shouldSchedule(
+        isHovered: Bool,
+        activeOperationCount: Int,
+        pausesOnHover: Bool
+    ) -> Bool {
+        activeOperationCount == 0 && (!pausesOnHover || !isHovered)
+    }
+
+    static func shouldDeferHide(mouseButtonsPressed: Bool) -> Bool {
+        mouseButtonsPressed
+    }
+}
+
 @MainActor
 final class ShelfController {
     private var panel: NSPanel?
@@ -99,7 +113,8 @@ final class ShelfController {
     }
 
     func resumeAutoHide(model: AppModel) {
-        _ = model
+        guard panel?.isVisible == true else { return }
+        scheduleAutoHide(after: model.settings.shelfDuration)
     }
 
     private func position(
@@ -151,6 +166,12 @@ final class ShelfController {
                 return
             }
             guard !Task.isCancelled else { return }
+            if ShelfAutoHidePolicy.shouldDeferHide(
+                mouseButtonsPressed: NSEvent.pressedMouseButtons != 0
+            ) {
+                self?.scheduleAutoHide(after: 1)
+                return
+            }
             self?.hide()
         }
     }
@@ -227,6 +248,7 @@ struct ShelfView: View {
             Button(L10n.t("Close", "閉じる")) { model.dismissShelf() }
             Button(L10n.t("Delete", "削除"), role: .destructive) { model.delete(item) }
         }
+        .onHover { model.shelfHoverChanged($0) }
     }
 }
 

@@ -821,6 +821,42 @@ final class CapMarkTests: XCTestCase {
         )
     }
 
+    func testShelfAutoHidePolicyPausesForInteraction() {
+        XCTAssertTrue(
+            ShelfAutoHidePolicy.shouldSchedule(
+                isHovered: false,
+                activeOperationCount: 0,
+                pausesOnHover: true
+            )
+        )
+        XCTAssertFalse(
+            ShelfAutoHidePolicy.shouldSchedule(
+                isHovered: true,
+                activeOperationCount: 0,
+                pausesOnHover: true
+            )
+        )
+        XCTAssertTrue(
+            ShelfAutoHidePolicy.shouldSchedule(
+                isHovered: true,
+                activeOperationCount: 0,
+                pausesOnHover: false
+            )
+        )
+        XCTAssertFalse(
+            ShelfAutoHidePolicy.shouldSchedule(
+                isHovered: false,
+                activeOperationCount: 1,
+                pausesOnHover: false
+            )
+        )
+        XCTAssertTrue(
+            ShelfAutoHidePolicy.shouldDeferHide(
+                mouseButtonsPressed: true
+            )
+        )
+    }
+
     func testPreferredLanguageDefaultsToEnglishAndLocalizesTitles() throws {
         let settings = AppSettings()
         XCTAssertEqual(settings.preferredLanguage, .english)
@@ -862,6 +898,23 @@ final class CapMarkTests: XCTestCase {
         let migrated = try JSONDecoder().decode(ShortcutConfiguration.self, from: legacyData)
         XCTAssertTrue(migrated.isConfigured)
         XCTAssertEqual(migrated.display, "⇧⌘2")
+
+        let pausedData = """
+        {
+          "keyCode": 19,
+          "command": true,
+          "shift": true,
+          "option": false,
+          "control": false,
+          "enabled": false,
+          "isConfigured": true
+        }
+        """.data(using: .utf8)!
+        let paused = try JSONDecoder().decode(
+            ShortcutConfiguration.self, from: pausedData
+        )
+        XCTAssertFalse(paused.isConfigured)
+        XCTAssertEqual(paused.display, "Not set")
     }
 
     func testFilenameTemplateExpansion() {

@@ -507,6 +507,10 @@ struct ShortcutConfiguration: Codable, Equatable {
         case keyCode, command, shift, option, control, isConfigured
     }
 
+    private enum LegacyCodingKeys: String, CodingKey {
+        case enabled
+    }
+
     init(
         keyCode: UInt32 = 19, command: Bool = true, shift: Bool = true,
         option: Bool = false, control: Bool = false,
@@ -527,7 +531,16 @@ struct ShortcutConfiguration: Codable, Equatable {
         shift = try values.decodeIfPresent(Bool.self, forKey: .shift) ?? true
         option = try values.decodeIfPresent(Bool.self, forKey: .option) ?? false
         control = try values.decodeIfPresent(Bool.self, forKey: .control) ?? false
-        isConfigured = try values.decodeIfPresent(Bool.self, forKey: .isConfigured) ?? true
+        let configured = try values.decodeIfPresent(
+            Bool.self, forKey: .isConfigured
+        ) ?? true
+        let legacyValues = try decoder.container(
+            keyedBy: LegacyCodingKeys.self
+        )
+        let legacyEnabled = try legacyValues.decodeIfPresent(
+            Bool.self, forKey: .enabled
+        ) ?? true
+        isConfigured = configured && legacyEnabled
     }
 
     static func keyName(_ code: UInt32) -> String {

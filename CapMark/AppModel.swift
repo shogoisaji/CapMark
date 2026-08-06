@@ -50,6 +50,9 @@ final class AppModel: ObservableObject {
     private var historyPreparationTask: Task<Void, Never>?
     private var settingsSaveTask: Task<Void, Never>?
     private var temporaryFileMaintenanceTask: Task<Void, Never>?
+    private var isShelfHovered = false
+    private var shelfOperationCount = 0
+    private var shelfEditingIDs: Set<UUID> = []
 
     func start(isLoginItemLaunch: Bool = false) {
         LanguageCenter.shared.apply(settings.preferredLanguage)
@@ -372,8 +375,10 @@ final class AppModel: ObservableObject {
         }
     }
     func save(_ item: CaptureItem) {
+        let suspendsAutoHide = beginShelfOperation(for: item)
         FileExportService.save(item, settings: settings) { [weak self] ids in
             guard let self else { return }
+            defer { endShelfOperation(if: suspendsAutoHide) }
             if !ids.isEmpty { recordSaved(ids) }
         }
     }
@@ -405,6 +410,10 @@ final class AppModel: ObservableObject {
             return
         }
         applyActivationPolicy(windowIsOpen: true)
+        if shelfItems.contains(where: { $0.id == item.id }),
+           shelfEditingIDs.insert(item.id).inserted {
+            beginShelfOperation()
+        }
         isEditing = true
         menuBar.update()
         annotationEditor.show(item: item, document: document, model: self)
@@ -443,6 +452,7 @@ final class AppModel: ObservableObject {
     }
 
     func editorDidFinish(_ item: CaptureItem) {
+        defer { endShelfEditing(item.id) }
         if copyAfterEditing.remove(item.id) != nil {
             copy(item)
             return
@@ -455,6 +465,7 @@ final class AppModel: ObservableObject {
     }
 
     func editorDidCancel(_ id: UUID) {
+        defer { endShelfEditing(id) }
         copyAfterEditing.remove(id)
         if transientURLs[id] != nil {
             presentShelf()
@@ -672,11 +683,17 @@ final class AppModel: ObservableObject {
     }
 
     func shelfHoverChanged(_ hovering: Bool) {
-        // 自動非表示は使わないため、ホバーでのタイマー制御は不要。
-        _ = hovering
+        guard isShelfHovered != hovering else { return }
+        isShelfHovered = hovering
+        updateShelfAutoHideState()
+    }
+
+    func editorWindowDidClose(_ id: UUID) {
+        endShelfEditing(id)
     }
 
     func shelfDidHide() {
+        isShelfHovered = false
         let transientIDs = Set(transientURLs.keys)
         for url in transientURLs.values {
             try? FileManager.default.removeItem(at: url)
@@ -791,7 +808,9 @@ final class AppModel: ObservableObject {
         _ item: CaptureItem,
         operation: @escaping @MainActor () async throws -> Bool
     ) {
+        let suspendsAutoHide = beginShelfOperation(for: item)
         Task {
+            defer { endShelfOperation(if: suspendsAutoHide) }
             do {
                 let succeeded = try await operation()
                 showCopyFeedback(item.id, succeeded: succeeded)
@@ -863,6 +882,44 @@ final class AppModel: ObservableObject {
 
     private func presentShelf() {
         shelf.show(items: Array(shelfItems.prefix(1)), model: self)
+        updateShelfAutoHideState()
+    }
+
+    @discardableResult
+    private func beginShelfOperation(for item: CaptureItem) -> Bool {
+        guard shelfItems.contains(where: { $0.id == item.id }) else {
+            return false
+        }
+        beginShelfOperation()
+        return true
+    }
+
+    private func beginShelfOperation() {
+        shelfOperationCount += 1
+        updateShelfAutoHideState()
+    }
+
+    private func endShelfOperation(if began: Bool) {
+        guard began else { return }
+        shelfOperationCount = max(0, shelfOperationCount - 1)
+        updateShelfAutoHideState()
+    }
+
+    private func endShelfEditing(_ id: UUID) {
+        guard shelfEditingIDs.remove(id) != nil else { return }
+        endShelfOperation(if: true)
+    }
+
+    private func updateShelfAutoHideState() {
+        if ShelfAutoHidePolicy.shouldSchedule(
+            isHovered: isShelfHovered,
+            activeOperationCount: shelfOperationCount,
+            pausesOnHover: settings.pauseShelfTimerOnHover
+        ) {
+            shelf.resumeAutoHide(model: self)
+        } else {
+            shelf.pauseAutoHide()
+        }
     }
 
     private func removeTransient(id: UUID) {

@@ -405,8 +405,16 @@ struct HistoryCard: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 4) {
-                    Text(item.createdAt, style: .date)
-                    Text(item.createdAt, style: .time)
+                    Text(
+                        item.createdAt.formatted(
+                            .dateTime.year().month().day().locale(L10n.locale)
+                        )
+                    )
+                    Text(
+                        item.createdAt.formatted(
+                            .dateTime.hour().minute().locale(L10n.locale)
+                        )
+                    )
                 }
                 .font(.caption)
                 .lineLimit(1)
