@@ -3,7 +3,7 @@
 # Package a Developer ID-signed CapMark.app into a notarized, stapled DMG.
 #
 # Usage:
-#   AC_API_KEY_PROFILE=CapMarkNotary scripts/package-dmg.sh path/to/CapMark.app
+#   AC_API_KEY_PROFILE=ACNotary scripts/package-dmg.sh path/to/CapMark.app
 
 set -euo pipefail
 
